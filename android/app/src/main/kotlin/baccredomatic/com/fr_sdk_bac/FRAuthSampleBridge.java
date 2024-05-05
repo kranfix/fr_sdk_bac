@@ -2,20 +2,27 @@ package baccredomatic.com.fr_sdk_bac;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import org.forgerock.android.auth.AccessToken;
 import org.forgerock.android.auth.FRAuth;
 import org.forgerock.android.auth.FRListener;
+import org.forgerock.android.auth.FRSession;
 import org.forgerock.android.auth.FRUser;
 import org.forgerock.android.auth.Logger;
 import org.forgerock.android.auth.Node;
 import org.forgerock.android.auth.NodeListener;
+import org.forgerock.android.auth.PolicyAdvice;
 import org.forgerock.android.auth.SecureCookieJar;
 import org.forgerock.android.auth.UserInfo;
 
 import io.flutter.plugin.common.MethodChannel;
+import kotlin.Unit;
+import kotlin.coroutines.Continuation;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -28,6 +35,7 @@ import org.forgerock.android.auth.callback.Callback;
 import org.forgerock.android.auth.callback.ChoiceCallback;
 import org.forgerock.android.auth.callback.DeviceProfileCallback;
 import org.forgerock.android.auth.callback.KbaCreateCallback;
+import org.forgerock.android.auth.callback.MetadataCallback;
 import org.forgerock.android.auth.callback.NameCallback;
 import org.forgerock.android.auth.callback.PasswordCallback;
 import org.forgerock.android.auth.callback.StringAttributeInputCallback;
@@ -38,6 +46,8 @@ import org.forgerock.android.auth.callback.WebAuthnAuthenticationCallback;
 import org.forgerock.android.auth.callback.WebAuthnRegistrationCallback;
 import org.forgerock.android.auth.exception.AuthenticationRequiredException;
 import org.forgerock.android.auth.interceptor.AccessTokenInterceptor;
+import org.forgerock.android.auth.interceptor.AdviceHandler;
+import org.forgerock.android.auth.interceptor.IdentityGatewayAdviceInterceptor;
 import org.forgerock.android.auth.webauthn.WebAuthnKeySelector;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
@@ -140,41 +150,115 @@ public class FRAuthSampleBridge {
         }
     }
 
-    public void callEndpoint(String endpoint, String method, String payload, MethodChannel.Result promise) {
+    public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
+        this.flutterPromise = promise;
+        boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
+        NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
+            @Override
+            public void onSuccess(FRSession session) {
+                /*HashMap map = new HashMap<>();
+                try {
+                    Gson gson = new Gson();
+                    map.put("type", "LoginSuccess");
+                    flutterPromise.success(gson.toJson(map));
+                } catch (Exception e) {
+                    Logger.warn("txAuthorization", e, "Login Failed");
+                    flutterPromise.error("error", e.getLocalizedMessage(), e);
+                }*/
+            }
+
+            @Override
+            public void onException(Exception e) {
+                // Handle Exception
+                Logger.warn("customLogin", e, "Login Failed");
+                flutterPromise.error("error", e.getLocalizedMessage(), e);
+            }
+
+            @Override
+            public void onCallbackReceived(Node node) {
+                listener = this;
+                currentNode = node;
+                List<Callback> callbacksList = node.getCallbacks();
+                int i = 0;
+                for (; i < callbacksList.size(); i++); {
+                    if (callbacksList.get(i).getType().equals("WebAuthnAuthenticationCallback")) {
+                        WebAuthnAuthenticationCallback authnCallback = (WebAuthnAuthenticationCallback)callbacksList.get(i);
+                        authnCallback.authenticate(context, node, WebAuthnKeySelector.DEFAULT, new FRListener<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                // Registration is successful
+                                // Continue the journey by calling next()
+                            }
+
+                            @Override
+                            public void onException(Exception e) {
+                                // An error occurred during the registration process
+                                // Continue the journey by calling next()
+                            }
+                        });
+                        node.next(context, listener);
+                    }
+                }
+
+            }
+        };
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
                 .followRedirects(false);
 
-        builder.addInterceptor(new AccessTokenInterceptor());
-        builder.cookieJar(SecureCookieJar.builder()
-                .context(this.context)
-                .build());
-
-        OkHttpClient client = builder.build();
-        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-        Request request;
-        if (payload.length() > 0 ) {
-            RequestBody body = RequestBody.create(payload, JSON);
-            request = new Request.Builder().url(endpoint)
-                    .method(method, body)
-                    .build();
-        } else {
-            request = new Request.Builder().url(endpoint)
-                    .method(method, null)
-                    .build();
+        if (isAuthzRequired) {
+            AdviceHandler adviceHandler = new AdviceHandler() {
+                @Override
+                public Object onAdviceReceived(@NonNull Context context, @NonNull PolicyAdvice advice, @NonNull Continuation<? super Unit> continuation) {
+                    FRSession.getCurrentSession().authenticate(context, advice, nodeListenerFuture);
+                    return advice;
+                }
+            };
+            builder.addInterceptor(new IdentityGatewayAdviceInterceptor() {
+                @Override
+                public AdviceHandler getAdviceHandler(PolicyAdvice advice) {
+                    return adviceHandler;
+                }
+            });
         }
+        else {
+            builder.addInterceptor(new AccessTokenInterceptor());
+            builder.cookieJar(SecureCookieJar.builder()
+                    .context(this.context)
+                    .build());
 
-
-        client.newCall(request).enqueue(new okhttp3.Callback() {
-            @Override
-            public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                promise.error("error", "Request Failed", e);
+            OkHttpClient client = builder.build();
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            Request request;
+            if (payload.length() > 0 ) {
+                RequestBody body = RequestBody.create(payload, JSON);
+                if (isAuthzRequired) {
+                    request = new Request.Builder().url(endpoint)
+                            .addHeader("x-authenticate-response", "header")
+                            .method(method, body)
+                            .build();
+                }
+                else {
+                    request = new Request.Builder().url(endpoint)
+                            .method(method, body)
+                            .build();
+                }
+            } else {
+                request = new Request.Builder().url(endpoint)
+                        .method(method, null)
+                        .build();
             }
+            client.newCall(request).enqueue(new okhttp3.Callback() {
+                @Override
+                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                    promise.error("error", "Request Failed", e);
+                }
 
-            @Override
-            public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
-                promise.success(response.body().string());
-            }
-        });
+                @Override
+                public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
+                    promise.success(response.body().string());
+                }
+            });
+        }
     }
 
     public void next(String response, MethodChannel.Result promise) throws InterruptedException {
@@ -245,44 +329,6 @@ public class FRAuthSampleBridge {
                             }
                         });
                     }
-                    if (currentCallbackType.equals("WebAuthnRegistrationCallback") && i==j) {
-                        final Semaphore available = new Semaphore(1, true);
-                        available.acquire();
-                        currentNode.getCallback(WebAuthnRegistrationCallback.class).register(this.context, "deviceName", currentNode, new FRListener<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                // Registration is successful
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-
-                            @Override
-                            public void onException(Exception e) {
-                                // An error occurred during the registration process
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-                        });
-                    }
-                    if (currentCallbackType.equals("WebAuthnAuthenticationCallback") && i==j) {
-                        final Semaphore available = new Semaphore(1, true);
-                        available.acquire();
-                        currentNode.getCallback(WebAuthnAuthenticationCallback.class).authenticate(this.context, currentNode, WebAuthnKeySelector.DEFAULT, new FRListener<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                // Registration is successful
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-
-                            @Override
-                            public void onException(Exception e) {
-                                // An error occurred during the registration process
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-                        });
-                    }
                 }
             }
         } else {
@@ -335,6 +381,37 @@ public class FRAuthSampleBridge {
         } else {
             FRUser.register(this.context, nodeListenerFuture);
         }
+    }
+
+    public void webAuthentication(MethodChannel.Result promise, String callbackValue, String isLogin) throws JSONException {
+        final Semaphore available = new Semaphore(1, true);
+        FRListener<Void> listener = new FRListener<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                // Registration is successful
+                // Continue the journey by calling next()
+                available.release();
+            }
+
+            @Override
+            public void onException(Exception e) {
+                // An error occurred during the registration process
+                // Continue the journey by calling next()
+                available.release();
+            }
+        };
+        boolean doLogin = Boolean.parseBoolean(isLogin);
+        //JSONObject callbackJSON = new JSONObject(callbackValue);
+        if (doLogin) { // Create a WebAuthnAuthenticationCallback
+
+            WebAuthnAuthenticationCallback callback = new WebAuthnAuthenticationCallback();
+            callback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, listener);
+        }
+        else {
+            WebAuthnRegistrationCallback callback = new WebAuthnRegistrationCallback();
+            callback.register(this.context, "deviceName", currentNode, listener);
+        }
+        currentNode.next(this.context, this.listener);
     }
 }
 

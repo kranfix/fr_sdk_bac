@@ -2,7 +2,8 @@
     <application
         android:label="fr_sdk_bac"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,6 +32,7 @@
             android:value="2" />
         <meta-data android:name="asset_statements"
             android:resource="@string/asset_statements" />
+
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility?hl=en and

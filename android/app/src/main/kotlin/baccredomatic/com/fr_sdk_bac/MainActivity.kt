@@ -28,12 +28,16 @@ class MainActivity: FlutterActivity() {
                 "callEndpoint" -> {
                     if (call.arguments is ArrayList<*>) {
                         val args = call.arguments as ArrayList<String>
-                        frSampleBridgeChannel.callEndpoint(args[0], args[1], args[2], result)
+                        frSampleBridgeChannel.callEndpoint(args[0], args[1], args[2], args[3], result)
                     } else {
                         result.error("500", "Arguments not parsed correctly", null)
                     }
                 }
                 "getUserInfo" -> frSampleBridgeChannel.getUserInfo(result)
+                "webAuthentication" -> {
+                    val args = call.arguments as ArrayList<String>;
+                    frSampleBridgeChannel.webAuthentication(result, args[0], args[1]);
+                }
                 else -> {
                     result.notImplemented()
                 }
