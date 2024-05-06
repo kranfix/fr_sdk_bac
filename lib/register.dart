@@ -1,7 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
-import 'dart:developer' as developer;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -82,17 +79,22 @@ class _RegisterPageState extends State<RegisterPage> {
     var callbackIndex = 0;
     while (callbackIndex < currentNode.callbacks.length) {
       var frCallback = currentNode.callbacks[callbackIndex];
-      TextEditingController controller = _controllers[frCallback.input[0].name]!;
       if (frCallback.type == "BooleanAttributeInputCallback") {
+        TextEditingController controller = _controllers[frCallback.input[0].name]!;
         frCallback.input[0].value = controller.text == 'true';
       } else if (frCallback.type == "KbaCreateCallback") {
+        TextEditingController controller = _controllers[frCallback.input[0].name]!;
         frCallback.input[0].value = controller.text;
         TextEditingController answerController = _controllers[frCallback.input[1].name]!;
         frCallback.input[1].value = answerController.text;
       } else if (frCallback.type == "TermsAndConditionsCallback") {
+        TextEditingController controller = _controllers[frCallback.input[0].name]!;
         frCallback.input[0].value = controller.text == 'true';
+      } else if (frCallback.type == "WebAuthnRegistrationCallback") {
+        // Do nothing - no input required.
       }
       else {
+        TextEditingController controller = _controllers[frCallback.input[0].name]!;
         frCallback.input[0].value = controller.text;
       }
       callbackIndex++;
@@ -107,15 +109,15 @@ class _RegisterPageState extends State<RegisterPage> {
         _navigateToNextScreen(context);
       } else  {
         Map<String, dynamic> frNodeMap = jsonDecode(result);
-        Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
+        /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
         if ( callback["type"] == "WebAuthnRegistrationCallback") {
           _webAuthentication(callback);
         }
-        else {
+        else {*/
           var frNode = FRNode.fromJson(frNodeMap);
           currentNode = frNode;
           _handleNode(frNode);
-        }
+        //}
       }
     } catch (e) {
       debugPrint('SDK Error: $e');
@@ -123,10 +125,9 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future<void> _webAuthentication(Map<String, dynamic> callback) async {
-    String callbackResponse = callback["response"];
+  Future<void> _webAuthentication() async {
     try {
-      String result = await platform.invokeMethod('webAuthentication', [callbackResponse, "false"]);
+      String result = await platform.invokeMethod('webAuthentication', ["false"]);
       Map<String, dynamic> response = jsonDecode(result);
       if (response["type"] == "LoginSuccess") {
         _navigateToNextScreen(context);
@@ -218,7 +219,12 @@ class _RegisterPageState extends State<RegisterPage> {
         _fields.add(field);
         _controllers[frCallback.input[1].name] = kbaController;
       }
+      else if (frCallback.type == "WebAuthnRegistrationCallback") {
+        // We can implement a Device Name collection screen - later
+        _next();
+      }
     }
+
   }
 
   void showAlertDialog(BuildContext context) {

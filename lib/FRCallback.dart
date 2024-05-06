@@ -4,7 +4,7 @@
 //
 //  This software may be modified and distributed under the terms
 //  of the MIT license. See the LICENSE file for details.
-
+import 'dart:convert';
 /*
 The FRCallback class is native Dart class replicating the structure of the SDKs Callback objects.
 This is used in order to natively parse and encode/decode the JSON objects returned from the SDKs.
@@ -19,21 +19,36 @@ class FRCallback {
 
   FRCallback({required this.type, required this.id, required this.output, required this.input});
 
-  factory FRCallback.fromJson(Map<String, dynamic> parsedJson){
-
+  factory FRCallback.fromJson(Map<String, dynamic> parsedJson, String callbackTypeName) {
     var outputList = parsedJson['output'] as List;
     List<FRInputOutput> frOutputList = outputList.map((i) => FRInputOutput.fromJson(i)).toList();
 
-    var inputList = parsedJson['input'] as List;
-    List<FRInputOutput> frInputList = inputList.map((i) => FRInputOutput.fromJson(i)).toList();
-
-
-    return FRCallback(
-        type: parsedJson['type'],
-        id: parsedJson['_id'],
-        output: frOutputList,
-        input: frInputList
-    );
+    if (parsedJson["input"] != null) {
+      var inputList = parsedJson['input'] as List;
+      List<FRInputOutput> frInputList = inputList.map((i) => FRInputOutput.fromJson(i)).toList();
+      int id = 0;
+      if (parsedJson['_id'] != null) {
+        id = parsedJson['_id'];
+      }
+      return FRCallback(
+          type: callbackTypeName,
+          id: id,
+          output: frOutputList,
+          input: frInputList
+      );
+    }
+    else {
+      int id = 0;
+      if (parsedJson['_id'] != null) {
+        id = parsedJson['_id'];
+      }
+      return FRCallback(
+          type: callbackTypeName,
+          id: id,
+          output: frOutputList,
+          input: List<FRInputOutput>.empty()
+      );
+    }
   }
 
   Map<String, dynamic> toJson() => {

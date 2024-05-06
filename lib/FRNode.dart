@@ -25,9 +25,17 @@ class FRNode {
   factory FRNode.fromJson(Map<String, dynamic> parsedJson){
 
     var list = parsedJson['callbacks'] as List;
-    print(list.runtimeType);
-    List<FRCallback> frCallbackList = list.map((i) => FRCallback.fromJson(i)).toList();
+    var frList = parsedJson['frCallbacks'] as List;
+    int index = 0;
 
+    List<FRCallback> frCallbackList = [];
+    while (index < list.length) {
+      Map<String, dynamic> callback = list[index];
+      String callbackTypeName = frList[index]['type'];
+      FRCallback callbackObj = FRCallback.fromJson(callback, callbackTypeName);
+      frCallbackList.add(callbackObj);
+      ++index;
+    }
 
     return FRNode(
         header: parsedJson['header'],

@@ -273,7 +273,10 @@ public class FRAuthSampleBridge {
                 for(int j = 0; j < responseObj.callbacks.size(); j++) {
                     RawCallback callback = responseObj.callbacks.get(j);
                     String currentCallbackType = callback.type;
-                    RawInput input = callback.input.get(0);
+                    RawInput input = null;
+                    if (callback.input.size() > 0) {
+                        input = callback.input.get(0);
+                    }
                     if ((currentCallbackType.equals("NameCallback")) && i==j) {
                         currentNode.getCallback(NameCallback.class).setName((String) input.value);
                     }
@@ -329,6 +332,48 @@ public class FRAuthSampleBridge {
                             }
                         });
                     }
+                    if (currentCallbackType.equals("WebAuthnRegistrationCallback")) {
+                        final Semaphore available = new Semaphore(1, true);
+                        available.acquire();
+                        FRListener<Void> webAuthnListener = new FRListener<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                // Registration is successful
+                                // Continue the journey by calling next()
+                                available.release();
+                            }
+
+                            @Override
+                            public void onException(Exception e) {
+                                // An error occurred during the registration process
+                                // Continue the journey by calling next()
+                                available.release();
+                            }
+                        };
+                        WebAuthnRegistrationCallback webAuthnCallback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
+                        webAuthnCallback.register(this.context, "deviceName", currentNode, webAuthnListener);
+                    }
+                    if (currentCallbackType.equals("WebAuthnAuthenticationCallback")) {
+                        final Semaphore available = new Semaphore(1, true);
+                        available.acquire();
+                        FRListener<Void> webAuthnListener = new FRListener<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                // Registration is successful
+                                // Continue the journey by calling next()
+                                available.release();
+                            }
+
+                            @Override
+                            public void onException(Exception e) {
+                                // An error occurred during the registration process
+                                // Continue the journey by calling next()
+                                available.release();
+                            }
+                        };
+                        WebAuthnAuthenticationCallback webAuthnCallback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
+                        webAuthnCallback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, webAuthnListener);
+                    }
                 }
             }
         } else {
@@ -383,7 +428,7 @@ public class FRAuthSampleBridge {
         }
     }
 
-    public void webAuthentication(MethodChannel.Result promise, String callbackValue, String isLogin) throws JSONException {
+    public void webAuthentication(MethodChannel.Result promise, String isLogin) throws JSONException {
         final Semaphore available = new Semaphore(1, true);
         FRListener<Void> listener = new FRListener<Void>() {
             @Override
@@ -404,11 +449,11 @@ public class FRAuthSampleBridge {
         //JSONObject callbackJSON = new JSONObject(callbackValue);
         if (doLogin) { // Create a WebAuthnAuthenticationCallback
 
-            WebAuthnAuthenticationCallback callback = new WebAuthnAuthenticationCallback();
+            WebAuthnAuthenticationCallback callback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
             callback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, listener);
         }
         else {
-            WebAuthnRegistrationCallback callback = new WebAuthnRegistrationCallback();
+            WebAuthnRegistrationCallback callback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
             callback.register(this.context, "deviceName", currentNode, listener);
         }
         currentNode.next(this.context, this.listener);
