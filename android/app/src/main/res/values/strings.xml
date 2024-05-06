@@ -19,7 +19,7 @@
     <string name="forgerock_registration_service" translatable="false">bacmobilereg</string>
     <string name="asset_statements" translatable="false">
     [{
-      \"include\": \"https://openam-bacciambl.forgeblocks.com/openidm/config/fidc/assetlinks.bacmobile.encore.forgerock.org\"
+      \"include\": \"https://bacciambl.encore.forgerock.com/.well-known/assetlinks.json\"
     }]
     </string>
 </resources>
