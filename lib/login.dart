@@ -64,12 +64,18 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _next() async {
     // Capture the User Inputs from the UI, populate the currentNode callbacks and submit back to AM
+
     currentNode.callbacks.asMap().forEach((index, frCallback) {
-      _controllers.asMap().forEach((controllerIndex, controller) {
-        if (controllerIndex == index) {
-          frCallback.input[0].value = controller.text;
-        }
-      });
+      if (frCallback.type == "WebAuthnAuthenticationCallback" || frCallback.type == "HiddenValueCallback") {
+        // Do nothing - no input required.
+      }
+      else {
+        _controllers.asMap().forEach((controllerIndex, controller) {
+          if (controllerIndex == index) {
+            frCallback.input[0].value = controller.text;
+          }
+        });
+      }
     });
     String jsonResponse = jsonEncode(currentNode);
     try {
@@ -93,8 +99,9 @@ class _LoginPageState extends State<LoginPage> {
 
   // Handling methods
   void _handleNode(FRNode frNode) {
+    bool webAuthn = false;
     // Go through the node callbacks and present the UI fields as needed. Check for the type of each callback to determine, what UI element is needed.
-    frNode.callbacks.forEach((frCallback) {
+    for (var frCallback in frNode.callbacks) {
       if (frCallback.type == "NameCallback" || frCallback.type == "PasswordCallback") {
         final controller = TextEditingController();
         final field = TextField(
@@ -112,11 +119,14 @@ class _LoginPageState extends State<LoginPage> {
           _fields.add(field);
         });
       }
-      if (frCallback.type == "MetadataCallback") {
-        _next();
+      if (frCallback.type == "WebAuthnAuthenticationCallback") {
+        webAuthn = true;
+        break;
       }
-
-    });
+    }
+    if (webAuthn) {
+      _next();
+    }
   }
 
   void _navigateToNextScreen(BuildContext context) {

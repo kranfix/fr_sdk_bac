@@ -23,7 +23,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "baccredomatic.com.fr_sdk_bac"
+    namespace  "baccredomatic.com.fr_sdk_bac"
     compileSdk 33 //flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -39,6 +39,21 @@ android {
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
+
+ /*   signingConfigs {
+        release {
+            keyAlias 'upload'
+            keyPassword 'Ilohcbe2107'
+            storeFile file("/Users/alex.lopez/as-upload-keystore.jks")
+            storePassword 'Ilohcbe2107'
+        }
+        debug {
+            keyAlias 'upload'
+            keyPassword 'Ilohcbe2107'
+            storeFile file("/Users/alex.lopez/as-upload-keystore.jks")
+            storePassword 'Ilohcbe2107'
+        }
+    }*/
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).

@@ -1,5 +1,5 @@
 package baccredomatic.com.fr_sdk_bac
-
+//package com.example.app
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.FlutterFragmentActivity

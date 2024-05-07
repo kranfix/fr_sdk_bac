@@ -1,10 +1,12 @@
 package baccredomatic.com.fr_sdk_bac;
+//package com.example.app;
 
 import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.android.gms.fido.fido2.api.common.ResidentKeyRequirement;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -63,8 +65,6 @@ import java.util.concurrent.Semaphore;
 public class FRAuthSampleBridge {
     Context context;
     Node currentNode;
-    NodeListener listener;
-    MethodChannel.Result flutterPromise;
 
     private static final String CHANNEL = "forgerock.com/SampleBridge";
 
@@ -108,24 +108,23 @@ public class FRAuthSampleBridge {
     }
 
     public void getAccessToken(MethodChannel.Result promise) {
-        this.flutterPromise = promise;
         if (FRUser.getCurrentUser() != null) {
             FRUser.getCurrentUser().getAccessToken(new FRListener<AccessToken>() {
                 @Override
                 public void onSuccess(AccessToken result) {
                     Gson gson = new Gson();
                     String accessTokenJson = gson.toJson(result);
-                    flutterPromise.success(accessTokenJson);
+                    promise.success(accessTokenJson);
                 }
 
                 @Override
                 public void onException(Exception e) {
-                    flutterPromise.error("error", e.getMessage(), e);
+                    promise.error("error", e.getMessage(), e);
                 }
             });
         } else {
             Logger.error("error", "Current user is null. Not logged in or SDK not initialized yet");
-            this.flutterPromise.error("error", "Current user is null. Not logged in or SDK not initialized yet", null);
+            promise.error("error", "Current user is null. Not logged in or SDK not initialized yet", null);
         }
     }
 
@@ -151,7 +150,6 @@ public class FRAuthSampleBridge {
     }
 
     public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
-        this.flutterPromise = promise;
         boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
             @Override
@@ -171,12 +169,11 @@ public class FRAuthSampleBridge {
             public void onException(Exception e) {
                 // Handle Exception
                 Logger.warn("customLogin", e, "Login Failed");
-                flutterPromise.error("error", e.getLocalizedMessage(), e);
+                promise.error("error", e.getLocalizedMessage(), e);
             }
 
             @Override
             public void onCallbackReceived(Node node) {
-                listener = this;
                 currentNode = node;
                 List<Callback> callbacksList = node.getCallbacks();
                 int i = 0;
@@ -196,7 +193,7 @@ public class FRAuthSampleBridge {
                                 // Continue the journey by calling next()
                             }
                         });
-                        node.next(context, listener);
+                        //node.next(context, listener);
                     }
                 }
 
@@ -262,13 +259,47 @@ public class FRAuthSampleBridge {
     }
 
     public void next(String response, MethodChannel.Result promise) throws InterruptedException {
-        this.flutterPromise = promise;
+
         Gson gson= new Gson();
         Response responseObj = gson.fromJson(response,Response.class);
         if (responseObj != null) {
             List<Callback> callbacksList = currentNode.getCallbacks();
             for(int i = 0; i < callbacksList.size(); i++) {
                 Object nodeCallback = callbacksList.get(i);
+
+                if (nodeCallback instanceof WebAuthnRegistrationCallback) {
+                    FRListener<Void> webAuthnListener = new FRListener<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            currentNode.next(context, listener(promise));
+                        }
+
+                        @Override
+                        public void onException(Exception e) {
+                            currentNode.next(context, listener(promise));
+                        }
+                    };
+                    WebAuthnRegistrationCallback webAuthnCallback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
+                    webAuthnCallback.setResidentKeyRequirement(ResidentKeyRequirement.RESIDENT_KEY_DISCOURAGED);
+                    webAuthnCallback.register(this.context, "deviceName", currentNode, webAuthnListener);
+                    return;
+                }
+                if (nodeCallback instanceof  WebAuthnAuthenticationCallback) {
+                    FRListener<Void> webAuthnListener = new FRListener<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            currentNode.next(context, listener(promise));
+                        }
+
+                        @Override
+                        public void onException(Exception e) {
+                            currentNode.next(context, listener(promise));
+                        }
+                    };
+                    WebAuthnAuthenticationCallback webAuthnCallback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
+                    webAuthnCallback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, webAuthnListener);
+                    return;
+                }
 
                 for(int j = 0; j < responseObj.callbacks.size(); j++) {
                     RawCallback callback = responseObj.callbacks.get(j);
@@ -332,60 +363,17 @@ public class FRAuthSampleBridge {
                             }
                         });
                     }
-                    if (currentCallbackType.equals("WebAuthnRegistrationCallback")) {
-                        final Semaphore available = new Semaphore(1, true);
-                        available.acquire();
-                        FRListener<Void> webAuthnListener = new FRListener<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                // Registration is successful
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-
-                            @Override
-                            public void onException(Exception e) {
-                                // An error occurred during the registration process
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-                        };
-                        WebAuthnRegistrationCallback webAuthnCallback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
-                        webAuthnCallback.register(this.context, "deviceName", currentNode, webAuthnListener);
-                    }
-                    if (currentCallbackType.equals("WebAuthnAuthenticationCallback")) {
-                        final Semaphore available = new Semaphore(1, true);
-                        available.acquire();
-                        FRListener<Void> webAuthnListener = new FRListener<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                // Registration is successful
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-
-                            @Override
-                            public void onException(Exception e) {
-                                // An error occurred during the registration process
-                                // Continue the journey by calling next()
-                                available.release();
-                            }
-                        };
-                        WebAuthnAuthenticationCallback webAuthnCallback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
-                        webAuthnCallback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, webAuthnListener);
-                    }
                 }
             }
         } else {
             promise.error("error", "parsing response failed", null);
         }
 
-        currentNode.next(this.context, listener);
+        currentNode.next(this.context, listener(promise));
     }
 
-    public void authenticate(MethodChannel.Result promise, boolean isLogin) {
-        this.flutterPromise = promise;
-        NodeListener<FRUser> nodeListenerFuture = new NodeListener<FRUser>() {
+    private NodeListener<FRUser> listener(MethodChannel.Result promise) {
+        return new NodeListener<FRUser>() {
             @Override
             public void onSuccess(FRUser user) {
                 final AccessToken accessToken;
@@ -396,10 +384,10 @@ public class FRAuthSampleBridge {
                     String accessTokenJson = gson.toJson(accessToken);
                     map.put("type", "LoginSuccess");
                     map.put("sessionToken", accessTokenJson);
-                    flutterPromise.success(gson.toJson(map));
+                    promise.success(gson.toJson(map));
                 } catch (AuthenticationRequiredException e) {
                     Logger.warn("customLogin", e, "Login Failed");
-                    flutterPromise.error("error", e.getLocalizedMessage(), e);
+                    promise.error("error", e.getLocalizedMessage(), e);
                 }
             }
 
@@ -407,24 +395,25 @@ public class FRAuthSampleBridge {
             public void onException(Exception e) {
                 // Handle Exception
                 Logger.warn("customLogin", e, "Login Failed");
-                flutterPromise.error("error", e.getLocalizedMessage(), e);
+                promise.error("error", e.getLocalizedMessage(), e);
             }
 
             @Override
             public void onCallbackReceived(Node node) {
-                listener = this;
                 currentNode = node;
                 FRNode frNode = new FRNode(node);
                 Gson gson = new Gson();
                 String json = gson.toJson(frNode);
-                flutterPromise.success(json);
+                promise.success(json);
             }
         };
+    }
 
+    public void authenticate(MethodChannel.Result promise, boolean isLogin) {
         if (isLogin == true) {
-            FRUser.login(this.context, nodeListenerFuture);
+            FRUser.login(this.context, listener(promise));
         } else {
-            FRUser.register(this.context, nodeListenerFuture);
+            FRUser.register(this.context, listener(promise));
         }
     }
 
@@ -456,7 +445,8 @@ public class FRAuthSampleBridge {
             WebAuthnRegistrationCallback callback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
             callback.register(this.context, "deviceName", currentNode, listener);
         }
-        currentNode.next(this.context, this.listener);
+        //TODO
+        //currentNode.next(this.context, listener);
     }
 }
 

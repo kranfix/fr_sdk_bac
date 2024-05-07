@@ -90,7 +90,7 @@ class _RegisterPageState extends State<RegisterPage> {
       } else if (frCallback.type == "TermsAndConditionsCallback") {
         TextEditingController controller = _controllers[frCallback.input[0].name]!;
         frCallback.input[0].value = controller.text == 'true';
-      } else if (frCallback.type == "WebAuthnRegistrationCallback") {
+      } else if (frCallback.type == "WebAuthnRegistrationCallback" || frCallback.type == "HiddenValueCallback") {
         // Do nothing - no input required.
       }
       else {
@@ -125,28 +125,9 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future<void> _webAuthentication() async {
-    try {
-      String result = await platform.invokeMethod('webAuthentication', ["false"]);
-      Map<String, dynamic> response = jsonDecode(result);
-      if (response["type"] == "LoginSuccess") {
-        _navigateToNextScreen(context);
-      } else {
-        Map<String, dynamic> frNodeMap = jsonDecode(result);
-        var frNode = FRNode.fromJson(frNodeMap);
-        currentNode = frNode;
-        _handleNode(frNode);
-      }
-    }
-    catch (e) {
-      debugPrint('SDK Error: $e');
-      Navigator.pop(context);
-    }
-
-  }
-
   // Helper/Handler methods
   void _handleNode(FRNode frNode) {
+    bool webAuthn = false;
     for (var frCallback in frNode.callbacks) {
       final controller = TextEditingController();
       if (frCallback.type == "ValidatedCreateUsernameCallback" || frCallback.type == "StringAttributeInputCallback" || frCallback.type == "ValidatedCreatePasswordCallback") {
@@ -221,10 +202,13 @@ class _RegisterPageState extends State<RegisterPage> {
       }
       else if (frCallback.type == "WebAuthnRegistrationCallback") {
         // We can implement a Device Name collection screen - later
-        _next();
+        webAuthn = true;
+        break;
       }
     }
-
+    if (webAuthn) { // Break the cycle and make sure we only call _next() once as soon as WebAuthnCallbacks are detected.
+      _next();
+    }
   }
 
   void showAlertDialog(BuildContext context) {
@@ -257,7 +241,6 @@ class _RegisterPageState extends State<RegisterPage> {
       child: TextButton(
         style: ButtonStyle(backgroundColor: MaterialStateProperty.all(Colors.blue)),
         onPressed: () async {
-          showAlertDialog(context);
           _next();
         },
         child:
