@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:fr_sdk_bac/home.dart';
+import 'package:fr_sdk_bac/transfer.dart';
 
 import 'FRNode.dart';
 import 'register.dart';
@@ -130,7 +132,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _navigateToNextScreen(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => TodoList()),);
+    Navigator.pop(context);
+    Navigator.push(context, MaterialPageRoute(builder: (context) => TransferPage()),);
   }
 
   void _navigateToRegisterScreen(BuildContext context) {
@@ -214,12 +217,15 @@ class _LoginPageState extends State<LoginPage> {
           backgroundColor: Colors.grey[200],
         ),
         backgroundColor: Colors.grey[100],
-        body: Column(
-          children: [
-            _listView(context),
-            _okButton(context),
-            _registerButton(context)
-          ],
-        ));
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+                _listView(context),
+                _okButton(context),
+                _registerButton(context)
+              ],
+            )
+        )
+    );
   }
 }

@@ -19,6 +19,7 @@ import org.forgerock.android.auth.Logger;
 import org.forgerock.android.auth.Node;
 import org.forgerock.android.auth.NodeListener;
 import org.forgerock.android.auth.PolicyAdvice;
+import org.forgerock.android.auth.SSOToken;
 import org.forgerock.android.auth.SecureCookieJar;
 import org.forgerock.android.auth.UserInfo;
 
@@ -59,6 +60,8 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -151,18 +154,21 @@ public class FRAuthSampleBridge {
 
     public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
         boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
+        SSOToken token = FRSession.getCurrentSession().getSessionToken();
+        System.out.println("The SSOToken is " + token.getValue());
+        System.out.println("Calling callEndpoint " + requireAuthz);
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
             @Override
             public void onSuccess(FRSession session) {
-                /*HashMap map = new HashMap<>();
+                HashMap map = new HashMap<>();
                 try {
                     Gson gson = new Gson();
                     map.put("type", "LoginSuccess");
-                    flutterPromise.success(gson.toJson(map));
+                    promise.success(gson.toJson(map));
                 } catch (Exception e) {
                     Logger.warn("txAuthorization", e, "Login Failed");
-                    flutterPromise.error("error", e.getLocalizedMessage(), e);
-                }*/
+                    promise.error("error", e.getLocalizedMessage(), e);
+                }
             }
 
             @Override
@@ -185,6 +191,7 @@ public class FRAuthSampleBridge {
                             public void onSuccess(Void result) {
                                 // Registration is successful
                                 // Continue the journey by calling next()
+                                node.next(context, listener(promise));
                             }
 
                             @Override
@@ -199,13 +206,15 @@ public class FRAuthSampleBridge {
 
             }
         };
-        OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                .followRedirects(false);
-
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().followRedirects(false);
+        OkHttpClient client;
+        Request request = null;
         if (isAuthzRequired) {
+            System.out.println("Authorization is required!!!!");
             AdviceHandler adviceHandler = new AdviceHandler() {
                 @Override
                 public Object onAdviceReceived(@NonNull Context context, @NonNull PolicyAdvice advice, @NonNull Continuation<? super Unit> continuation) {
+                    System.out.println("In onAdviceReceived");
                     FRSession.getCurrentSession().authenticate(context, advice, nodeListenerFuture);
                     return advice;
                 }
@@ -216,46 +225,49 @@ public class FRAuthSampleBridge {
                     return adviceHandler;
                 }
             });
-        }
-        else {
             builder.addInterceptor(new AccessTokenInterceptor());
-            builder.cookieJar(SecureCookieJar.builder()
-                    .context(this.context)
-                    .build());
-
-            OkHttpClient client = builder.build();
+            SecureCookieJar secureCookieJar = SecureCookieJar.builder().context(this.context).build();
+            builder.cookieJar(secureCookieJar);
+            client = builder.build();
             MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-            Request request;
             if (payload.length() > 0 ) {
                 RequestBody body = RequestBody.create(payload, JSON);
+                System.out.println("Body " + payload);
                 if (isAuthzRequired) {
                     request = new Request.Builder().url(endpoint)
                             .addHeader("x-authenticate-response", "header")
+                            .addHeader("tokenId", token.getValue())
                             .method(method, body)
                             .build();
-                }
-                else {
+                    System.out.println("The request object is " + request.toString());
+                } else {
                     request = new Request.Builder().url(endpoint)
                             .method(method, body)
                             .build();
+                    System.out.println("The request object <noAuthz> " + request.toString());
                 }
-            } else {
-                request = new Request.Builder().url(endpoint)
-                        .method(method, null)
-                        .build();
             }
-            client.newCall(request).enqueue(new okhttp3.Callback() {
-                @Override
-                public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                    promise.error("error", "Request Failed", e);
-                }
-
-                @Override
-                public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
-                    promise.success(response.body().string());
-                }
-            });
+        } else {
+            
+            client = builder.build();
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            request = new Request.Builder().url(endpoint)
+                    .method(method, null)
+                    .build();
+            System.out.println("The request object <noAuthz2> " + request.toString());
         }
+        System.out.println("About to submit request: " + request.toString());
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                promise.error("error", "Request Failed", e);
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
+                promise.success(response.body().string());
+            }
+        });
     }
 
     public void next(String response, MethodChannel.Result promise) throws InterruptedException {

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:fr_sdk_bac/home.dart';
+import 'package:fr_sdk_bac/transfer.dart';
 import 'todolist.dart';
 
 import 'FRNode.dart';
@@ -228,7 +230,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _navigateToNextScreen(BuildContext context) {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TodoList()),);
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TransferPage()),);
   }
 
   // Widgets
