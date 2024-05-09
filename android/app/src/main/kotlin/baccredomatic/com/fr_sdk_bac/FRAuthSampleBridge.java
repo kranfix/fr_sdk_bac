@@ -155,19 +155,9 @@ public class FRAuthSampleBridge {
 
     public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
         boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
-        SSOToken token = FRSession.getCurrentSession().getSessionToken();
-        HashSet<String> sessionCookies = (HashSet<String>) FRSession.getCurrentSession().getSessionCookies();
-        System.out.println("Session Cookies " + sessionCookies.toString());
-        Iterator<String> sessionCookiesIterator = sessionCookies.iterator();
-        String cookieHeader = null;
-        for (int i = 0; i < sessionCookies.size(); i++) {
-            String cookieValue = sessionCookiesIterator.next();
-            System.out.println("Session Cookie " + cookieValue);
-            cookieHeader = cookieValue + ";";
-        }
-        cookieHeader += "tokenId=" + token.getValue();
-        System.out.println("The SSOToken is " + token.getValue());
-        System.out.println("Calling callEndpoint " + requireAuthz);
+
+        System.out.println("Calling callEndpoint - requireAuthz is " + requireAuthz);
+
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
             @Override
             public void onSuccess(FRSession session) {
@@ -214,7 +204,6 @@ public class FRAuthSampleBridge {
                         //node.next(context, listener);
                     }
                 }
-
             }
         };
         OkHttpClient.Builder builder = new OkHttpClient.Builder().followRedirects(false);
@@ -222,6 +211,8 @@ public class FRAuthSampleBridge {
         Request request = null;
         if (isAuthzRequired) {
             System.out.println("Authorization is required!!!!");
+            FRSession session = FRSession.getCurrentSession();
+            String ssoToken = session.getSessionToken().getValue();
             AdviceHandler adviceHandler = new AdviceHandler() {
                 @Override
                 public Object onAdviceReceived(@NonNull Context context, @NonNull PolicyAdvice advice, @NonNull Continuation<? super Unit> continuation) {
@@ -236,9 +227,8 @@ public class FRAuthSampleBridge {
                     return adviceHandler;
                 }
             });
-            builder.addInterceptor(new AccessTokenInterceptor());
+            //builder.addInterceptor(new AccessTokenInterceptor());
             SecureCookieJar secureCookieJar = SecureCookieJar.builder().context(this.context).build();
-            secureCookieJar.loadForRequest(HttpUrl.parse(endpoint));
             builder.cookieJar(secureCookieJar);
             client = builder.build();
             MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -248,7 +238,7 @@ public class FRAuthSampleBridge {
                 if (isAuthzRequired) {
                     request = new Request.Builder().url(endpoint)
                             .addHeader("x-authenticate-response", "header")
-                            //.addHeader("cookie", cookieHeader)
+                            .addHeader("cookie", "tokenId=" + ssoToken)
                             .method(method, body)
                             .build();
                     System.out.println("The request object is " + request.toString());
@@ -279,6 +269,7 @@ public class FRAuthSampleBridge {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
+                System.out.println("onResponse => Call response " + response.body().string());
                 promise.success(response.body().string());
             }
         });
@@ -401,7 +392,7 @@ public class FRAuthSampleBridge {
     private NodeListener<FRUser> listener(MethodChannel.Result promise) {
         return new NodeListener<FRUser>() {
             @Override
-            public void onSuccess(FRUser user) {
+            public void onSuccess(FRUser session) {
                 final AccessToken accessToken;
                 HashMap map = new HashMap<>();
                 try {

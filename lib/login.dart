@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _navigateToNextScreen(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => TodoList()),);
+    Navigator.push(context, MaterialPageRoute(builder: (context) => TransferPage()),);
   }
 
   void _navigateToRegisterScreen(BuildContext context) {
