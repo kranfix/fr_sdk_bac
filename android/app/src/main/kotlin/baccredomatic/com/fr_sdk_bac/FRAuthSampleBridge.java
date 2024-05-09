@@ -27,6 +27,7 @@ import io.flutter.plugin.common.MethodChannel;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
 import okhttp3.Call;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -155,6 +156,16 @@ public class FRAuthSampleBridge {
     public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
         boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
         SSOToken token = FRSession.getCurrentSession().getSessionToken();
+        HashSet<String> sessionCookies = (HashSet<String>) FRSession.getCurrentSession().getSessionCookies();
+        System.out.println("Session Cookies " + sessionCookies.toString());
+        Iterator<String> sessionCookiesIterator = sessionCookies.iterator();
+        String cookieHeader = null;
+        for (int i = 0; i < sessionCookies.size(); i++) {
+            String cookieValue = sessionCookiesIterator.next();
+            System.out.println("Session Cookie " + cookieValue);
+            cookieHeader = cookieValue + ";";
+        }
+        cookieHeader += "tokenId=" + token.getValue();
         System.out.println("The SSOToken is " + token.getValue());
         System.out.println("Calling callEndpoint " + requireAuthz);
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
@@ -227,6 +238,7 @@ public class FRAuthSampleBridge {
             });
             builder.addInterceptor(new AccessTokenInterceptor());
             SecureCookieJar secureCookieJar = SecureCookieJar.builder().context(this.context).build();
+            secureCookieJar.loadForRequest(HttpUrl.parse(endpoint));
             builder.cookieJar(secureCookieJar);
             client = builder.build();
             MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -236,7 +248,7 @@ public class FRAuthSampleBridge {
                 if (isAuthzRequired) {
                     request = new Request.Builder().url(endpoint)
                             .addHeader("x-authenticate-response", "header")
-                            .addHeader("tokenId", token.getValue())
+                            //.addHeader("cookie", cookieHeader)
                             .method(method, body)
                             .build();
                     System.out.println("The request object is " + request.toString());
@@ -248,7 +260,9 @@ public class FRAuthSampleBridge {
                 }
             }
         } else {
-            
+            //builder.addInterceptor(new AccessTokenInterceptor());
+            SecureCookieJar secureCookieJar = SecureCookieJar.builder().context(this.context).build();
+            builder.cookieJar(secureCookieJar);
             client = builder.build();
             MediaType JSON = MediaType.parse("application/json; charset=utf-8");
             request = new Request.Builder().url(endpoint)

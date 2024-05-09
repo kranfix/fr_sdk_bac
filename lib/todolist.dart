@@ -108,7 +108,7 @@ class _TodoListState extends State<TodoList> {
   Future<void> _updateTodo(Todo todo, bool checked) async {
     try {
       String _id = todo.id.toString();
-      final String result = await platform.invokeMethod('callEndpoint', ["https://fr-todos-api.crbrl.io/todos/$_id",'POST', '{\"completed\": $checked}']);
+      final String result = await platform.invokeMethod('callEndpoint', ["https://fr-todos-api.crbrl.io/todos/$_id",'POST', '{\"completed\": $checked}, "false"']);
       _getTodos();
     } on PlatformException catch (e) {
       debugPrint('SDK: $e');
@@ -117,7 +117,8 @@ class _TodoListState extends State<TodoList> {
 
   Future<void> _getTodos() async {
     try {
-      final String result = await platform.invokeMethod('callEndpoint', ["https://fr-todos-api.crbrl.io/todos",'GET', '']);
+      //final String result = await platform.invokeMethod('callEndpoint', ["https://fr-todos-api.crbrl.io/todos",'GET', '', "false"]);
+      final String result = await platform.invokeMethod('callEndpoint', ["https://bacciambl.encore.forgerock.com/transfer?authnType=fido",'POST', '{"srcAcct": "35679383", "destAcct": "3975273", "amount": 230.00}', "true"]);
       List<dynamic> toDosList = jsonDecode(result);
       List<Map<String, dynamic>> todos = List<Map<String, dynamic>>.from(toDosList);
       _todos.clear();
