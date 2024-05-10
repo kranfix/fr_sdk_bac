@@ -182,28 +182,23 @@ public class FRAuthSampleBridge {
             @Override
             public void onCallbackReceived(Node node) {
                 currentNode = node;
-                List<Callback> callbacksList = node.getCallbacks();
-                int i = 0;
-                for (; i < callbacksList.size(); i++); {
-                    if (callbacksList.get(i).getType().equals("WebAuthnAuthenticationCallback")) {
-                        WebAuthnAuthenticationCallback authnCallback = (WebAuthnAuthenticationCallback)callbacksList.get(i);
-                        authnCallback.authenticate(context, node, WebAuthnKeySelector.DEFAULT, new FRListener<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                // Registration is successful
-                                // Continue the journey by calling next()
-                                node.next(context, listener(promise));
-                            }
-
-                            @Override
-                            public void onException(Exception e) {
-                                // An error occurred during the registration process
-                                // Continue the journey by calling next()
-                            }
-                        });
-                        //node.next(context, listener);
+                FRListener<Void> webAuthnListener = new FRListener<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        System.out.println("On Successful Web Authentication");
+                        Gson gson = new Gson();
+                        HashMap map = new HashMap<>();
+                        map.put("Result", "Transaction successful");
+                        promise.success(gson.toJson(map));
                     }
-                }
+
+                    @Override
+                    public void onException(Exception e) {
+                        promise.error("error", "Transaction Rejected", e);
+                    }
+                };
+                WebAuthnAuthenticationCallback webAuthnCallback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
+                webAuthnCallback.authenticate(context, currentNode, WebAuthnKeySelector.DEFAULT, webAuthnListener);
             }
         };
         OkHttpClient.Builder builder = new OkHttpClient.Builder().followRedirects(false);
@@ -269,8 +264,14 @@ public class FRAuthSampleBridge {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
-                System.out.println("onResponse => Call response " + response.body().string());
-                promise.success(response.body().string());
+                if (response.isRedirect()) {
+                    System.out.println("Policy redirection");
+                    return;
+                }
+                else {
+                    System.out.println("onResponse => Call response " + response.body().string());
+                    promise.success(response.body().string());
+                }
             }
         });
     }

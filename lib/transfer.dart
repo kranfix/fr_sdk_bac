@@ -40,10 +40,71 @@ class _TransferPageState extends State<TransferPage> {
       amount = double.parse(_controllers[2].text);
       //Call the default login tree.
       final String result = await platform.invokeMethod('callEndpoint', ["https://bacciambl.encore.forgerock.com/transfer?authType=${authnType}",'POST', '{"srcAcct": $srcAccount, "destAcct": $destAccount, "amount": $amount}', "true"]);
-      Map<String, dynamic> frNodeMap = jsonDecode(result);
-      // Process the results of the Transfer
+      debugPrint("Final response $result");
+      /*Map<String, dynamic> frNodeMap = jsonDecode(result);
+      var frNode = FRNode.fromJson(frNodeMap);
+      currentNode = frNode;
+      _handleNode(frNode);*/
     } on PlatformException catch (e) {
+      debugPrint('SDK: $e');
+      Navigator.pop(context);
+    }
+  }
+
+  // Method used to capture the user inputs from the UI, populate the Node and submit to AM
+  Future<void> _next() async {
+    //G through the node callback inputs and use the input name to match it with the UI element. Populate the value to the callback and then submit the node.
+    var callbackIndex = 0;
+    while (callbackIndex < currentNode.callbacks.length) {
+      var frCallback = currentNode.callbacks[callbackIndex];
+      if (frCallback.type == "WebAuthnRegistrationCallback" || frCallback.type == "HiddenValueCallback") {
+        // Do nothing - no input required.
+      }
+      else {
+        // Report error
+      }
+      callbackIndex++;
+    }
+    String jsonResponse = jsonEncode(currentNode);
+
+    try {
+      //Submitting the node. This will return either a new node or a success/failure message
+      String result = await platform.invokeMethod('next', jsonResponse);
+      Map<String, dynamic> response = jsonDecode(result);
+      if (response["type"] == "LoginSuccess") {
+        //_navigateToNextScreen(context);
+        //process the results
+        debugPrint("Transaction successful");
+      } else  {
+        Map<String, dynamic> frNodeMap = jsonDecode(result);
+        /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
+        if ( callback["type"] == "WebAuthnRegistrationCallback") {
+          _webAuthentication(callback);
+        }
+        else {*/
+        var frNode = FRNode.fromJson(frNodeMap);
+        currentNode = frNode;
+        _handleNode(frNode);
+        //}
+      }
+    } catch (e) {
       debugPrint('SDK Error: $e');
+      Navigator.pop(context);
+    }
+  }
+
+  // Helper/Handler methods
+  void _handleNode(FRNode frNode) {
+    bool webAuthn = false;
+    for (var frCallback in frNode.callbacks) {
+      if (frCallback.type == "WebAuthnRegistrationCallback") {
+        // We can implement a Device Name collection screen - later
+        webAuthn = true;
+        break;
+      }
+    }
+    if (webAuthn) { // Break the cycle and make sure we only call _next() once as soon as WebAuthnCallbacks are detected.
+      _next();
     }
   }
 
