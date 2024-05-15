@@ -155,7 +155,7 @@ public class FRAuthSampleBridge {
 
     public void callEndpoint(String endpoint, String method, String payload, String requireAuthz, MethodChannel.Result promise) {
         boolean isAuthzRequired = Boolean.parseBoolean(requireAuthz);
-
+        final String[] transactionId = new String[1];
         System.out.println("Calling callEndpoint - requireAuthz is " + requireAuthz);
 
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
@@ -186,9 +186,11 @@ public class FRAuthSampleBridge {
                     @Override
                     public void onSuccess(Void result) {
                         System.out.println("On Successful Web Authentication");
-                        Gson gson = new Gson();
                         HashMap map = new HashMap<>();
-                        map.put("Result", "Transaction successful");
+                        // Need to invoke the API again adding the TxId in a header - will do that later
+                        //invokeTransactionWithAuthorization(promise, endpoint, method, payload, transactionId[0]);
+                        Gson gson = new Gson();
+                        map.put("Result", "Transaction Successful");
                         promise.success(gson.toJson(map));
                     }
 
@@ -266,12 +268,54 @@ public class FRAuthSampleBridge {
             public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
                 if (response.isRedirect()) {
                     System.out.println("Policy redirection");
+                    Gson gson = new Gson();
+                    JsonObject advices = gson.fromJson(response.body().string(), JsonObject.class);
+                    // "advices":{ "TransactionConditionAdvice": [ "bd88fac8-0263-4135-8131-d18af7405723" ] }
+                    String txConditionAdviceValue = String.valueOf(advices.get("advices").getAsJsonObject().get("TransactionConditionAdvice").getAsJsonArray().get(0));
+                    System.out.println("Extracted txId from Advice: " + txConditionAdviceValue);
+                    transactionId[0] = txConditionAdviceValue;
                     return;
                 }
                 else {
                     System.out.println("onResponse => Call response " + response.body().string());
                     promise.success(response.body().string());
                 }
+            }
+        });
+    }
+
+    private void invokeTransactionWithAuthorization(MethodChannel.Result promise, String endpoint, String method, String payload, String txId) {
+        String uri = endpoint + "&_txid=" + txId + "&realm=/alpha&authIndexType=composite_advice&authIndexValue=<Advices><AttributeValuePair><Attribute name=\"TransactionConditionAdvice\"/><Value>" + txId + "</Value></AttributeValuePair></Advices>";
+
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().followRedirects(false);
+        OkHttpClient client;
+        Request request = null;
+        FRSession session = FRSession.getCurrentSession();
+        String ssoToken = session.getSessionToken().getValue();
+        SecureCookieJar secureCookieJar = SecureCookieJar.builder().context(this.context).build();
+        builder.cookieJar(secureCookieJar);
+        client = builder.build();
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(payload, JSON);
+        System.out.println("Body " + payload);
+        request = new Request.Builder().url(uri)
+                             .addHeader("x-authenticate-response", "header")
+                             .addHeader("cookie", "tokenId=" + ssoToken)
+                             .addHeader("TxId", txId)
+                             .method(method, body)
+                             .build();
+        System.out.println("The request object is " + request.toString());
+        System.out.println("About to submit request: " + request.toString());
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                promise.error("error", "Request Failed", e);
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
+                System.out.println("onResponse => Call response " + response.body().string());
+                promise.success(response.body().string());
             }
         });
     }
