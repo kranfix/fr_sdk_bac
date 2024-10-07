@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fr_sdk_bac/domain/transfer.dart';
+import 'package:fr_sdk_bac/fr_impls/transfer.dart';
+import 'package:fr_sdk_bac/fr_sdk.dart';
 import 'package:fr_sdk_bac/register.dart';
 import 'fr_node.dart';
 import 'home.dart';
@@ -30,28 +33,26 @@ class _TransferPageState extends State<TransferPage> {
   late String destAccount = "";
   late double amount = 0.0;
 
-  static const platform = MethodChannel(
+  TransferRepo readTransferRepo() {
+    return FRTranferRepo(const FRSdk());
+  }
+
+  static const _platform = MethodChannel(
       'forgerock.com/SampleBridge'); //Method channel as defined in the native Bridge code
 
   Future<void> _startTransaction(String authnType) async {
+    final transferRepo = readTransferRepo();
     try {
       srcAccount = _controllers[0].text;
       destAccount = _controllers[1].text;
       amount = double.parse(_controllers[2].text);
-      //Call the default login tree.
-      final String result = await platform.invokeMethod('callEndpoint', [
-        "https://bacciambl.encore.forgerock.com/transfer?authType=$authnType",
-        'POST',
-        '{"srcAcct": $srcAccount, "destAcct": $destAccount, "amount": $amount}',
-        "true"
-      ]);
-      debugPrint("Final response $result");
-      /*Map<String, dynamic> frNodeMap = jsonDecode(result);
-      var frNode = FRNode.fromJson(frNodeMap);
-      currentNode = frNode;
-      _handleNode(frNode);*/
-    } on PlatformException catch (e) {
-      debugPrint('SDK: $e');
+      await transferRepo.startTransaction(
+        authnType,
+        srcAccount,
+        destAccount,
+        amount,
+      );
+    } on StartTransactinError catch (_) {
       if (mounted) Navigator.pop(context);
     }
   }
@@ -74,7 +75,7 @@ class _TransferPageState extends State<TransferPage> {
 
     try {
       //Submitting the node. This will return either a new node or a success/failure message
-      String result = await platform.invokeMethod('next', jsonResponse);
+      String result = await _platform.invokeMethod('next', jsonResponse);
       Map<String, dynamic> response = jsonDecode(result);
       if (response["type"] == "LoginSuccess") {
         //_navigateToNextScreen(context);
