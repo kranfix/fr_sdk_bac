@@ -1,21 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fr_sdk_bac/domain/transfer.dart';
-import 'package:fr_sdk_bac/fr_impls/transfer.dart';
 import 'package:fr_sdk_bac/fr_sdk.dart';
+import 'package:fr_sdk_bac/providers.dart';
 import 'package:fr_sdk_bac/register.dart';
 import 'fr_node.dart';
 import 'home.dart';
 import 'login.dart';
 
-class TransferPage extends StatefulWidget {
+class TransferPage extends ConsumerStatefulWidget {
   const TransferPage({super.key});
 
   @override
-  State<TransferPage> createState() => _TransferPageState();
+  ConsumerState<TransferPage> createState() => _TransferPageState();
 }
 
-class _TransferPageState extends State<TransferPage> {
+class _TransferPageState extends ConsumerState<TransferPage> {
   final int _selectedIndex = 0;
   final _pageOptions = [
     const MyHomePage(),
@@ -31,7 +32,7 @@ class _TransferPageState extends State<TransferPage> {
   late double amount = 0.0;
 
   TransferRepo readTransferRepo() {
-    return FRTranferRepo(const FRSdk());
+    return ref.read(transferRepoProvider);
   }
 
   final sdk = const FRSdk();

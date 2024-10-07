@@ -10,6 +10,16 @@ class FRSdk {
   //Method channel as defined in the native Bridge code
   static const platform = MethodChannel('forgerock.com/SampleBridge');
 
+  static Future<FRSdk> start() async {
+    try {
+      //Start the SDK. Call the frAuthStart channel method to initialise the native SDKs
+      return const FRSdk();
+    } on PlatformException catch (e) {
+      debugPrint("SDK Start Failed: '${e.message}'.");
+      throw StartError();
+    }
+  }
+
   Future<String> callEndpoint(
     String url,
     HttpMethod method,
@@ -72,6 +82,8 @@ class FRSdk {
     }
   }
 }
+
+class StartError implements Exception {}
 
 enum HttpMethod {
   get('GET'),
