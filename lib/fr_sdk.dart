@@ -21,6 +21,22 @@ class FRSdk {
     }
   }
 
+  Future<FRNode> login() async {
+    try {
+      //Call the default login tree.
+      final String result = await platform.invokeMethod('login');
+      Map<String, dynamic> frNodeMap = jsonDecode(result);
+      final frNode = FRNode.fromJson(frNodeMap);
+      return frNode;
+    } on PlatformException catch (e) {
+      debugPrint('SDK Login Error: $e');
+      throw LoginError.fromPlatformException(e);
+    } catch (e) {
+      debugPrint('SDK Login Error: Unexpected: $e');
+      throw LoginError.unexpected();
+    }
+  }
+
   Future<String> callEndpoint(
     String url,
     HttpMethod method,
@@ -84,8 +100,20 @@ class FRSdk {
   }
 }
 
+// ------------------ Start ------------------
 class StartError implements Exception {}
 
+// ------------------ Login ------------------
+class LoginError implements Exception {
+  LoginError.fromPlatformException(PlatformException exception)
+      : platformException = exception;
+
+  LoginError.unexpected() : platformException = null;
+
+  final PlatformException? platformException;
+}
+
+// ------------------ Call Endpoint ------------------
 enum HttpMethod {
   get('GET'),
   post('POST'),
@@ -105,6 +133,8 @@ class CallEndpointError implements Exception {
 
   final PlatformException? platformException;
 }
+
+// ------------------ Next ------------------
 
 class NextError implements Exception {
   NextError.fromPlatformException(PlatformException exception)

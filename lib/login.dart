@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:fr_sdk_bac/fr_sdk.dart';
 import 'package:fr_sdk_bac/transfer.dart';
 
@@ -17,7 +14,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const platform = MethodChannel('forgerock.com/SampleBridge');
   final sdk = const FRSdk();
   final _fields = <TextField>[];
   final _controllers = <TextEditingController>[];
@@ -26,14 +22,12 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     try {
       //Call the default login tree.
-      final String result = await platform.invokeMethod('login');
-      Map<String, dynamic> frNodeMap = jsonDecode(result);
-      var frNode = FRNode.fromJson(frNodeMap);
+      final frNode = await sdk.login();
       currentNode = frNode;
 
       //Upon completion, a node with callbacks will be returned, handle that node and present the callbacks to UI as needed.
       _handleNode(frNode);
-    } on PlatformException catch (e) {
+    } on LoginError catch (e) {
       debugPrint('SDK Error: $e');
       if (mounted) Navigator.pop(context);
     }
