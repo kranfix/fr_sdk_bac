@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:fr_sdk_bac/fr_sdk.dart';
 import 'package:fr_sdk_bac/transfer.dart';
 
 import 'fr_node.dart';
@@ -16,34 +17,11 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const platform = MethodChannel(
-      'forgerock.com/SampleBridge'); //Method channel as defined in the native Bridge code
+  static const platform = MethodChannel('forgerock.com/SampleBridge');
+  final sdk = const FRSdk();
   final _fields = <TextField>[];
   final _controllers = <TextEditingController>[];
   late FRNode currentNode;
-
-  //Lifecycle Methods
-  @override
-  void initState() {
-    super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      //When the first controller that will use the SDK is created we need to call the 'frAuthStart' method to initialise the native SDKs
-      _startSDK();
-    });
-  }
-
-  // SDK Calls -  Note the promise type responses. Handle errors on the UI layer as required
-  Future<void> _startSDK() async {
-    String response;
-    try {
-      //Start the SDK. Call the frAuthStart channel method to initialise the native SDKs
-      final String result = await platform.invokeMethod('frAuthStart');
-      response = 'SDK Started';
-      _login();
-    } on PlatformException catch (e) {
-      response = "SDK Start Failed: '${e.message}'.";
-    }
-  }
 
   Future<void> _login() async {
     try {
@@ -76,23 +54,19 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     });
-    String jsonResponse = jsonEncode(currentNode);
+
     try {
-      // Call the SDK next method, to submit the User Inputs to AM. This will return the next Node or a Success/Failure
-      String result = await platform.invokeMethod('next', jsonResponse);
-      Map<String, dynamic> response = jsonDecode(result);
-      if (response["type"] == "LoginSuccess") {
-        if (mounted) _navigateToNextScreen(context);
-      } else {
-        //If a new node is returned, handle this in a similar way and resubmit the user inputs as needed.
-        Map<String, dynamic> frNodeMap = jsonDecode(result);
-        var frNode = FRNode.fromJson(frNodeMap);
-        currentNode = frNode;
-        _handleNode(frNode);
+      final action = await sdk.next(currentNode);
+      switch (action) {
+        case LoginSuccessNext():
+          if (mounted) _navigateToNextScreen(context);
+        case NextHandleNode(:final frNode):
+          currentNode = frNode;
+          _handleNode(frNode);
       }
-    } catch (e) {
+    } on NextError catch (e) {
+      debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
-      debugPrint('SDK Error: $e');
     }
   }
 

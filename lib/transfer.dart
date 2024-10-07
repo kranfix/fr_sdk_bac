@@ -1,21 +1,22 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fr_sdk_bac/domain/transfer.dart';
+import 'package:fr_sdk_bac/fr_sdk.dart';
+import 'package:fr_sdk_bac/providers.dart';
 import 'package:fr_sdk_bac/register.dart';
 import 'fr_node.dart';
 import 'home.dart';
 import 'login.dart';
 
-class TransferPage extends StatefulWidget {
+class TransferPage extends ConsumerStatefulWidget {
   const TransferPage({super.key});
 
   @override
-  State<TransferPage> createState() => _TransferPageState();
+  ConsumerState<TransferPage> createState() => _TransferPageState();
 }
 
-class _TransferPageState extends State<TransferPage> {
+class _TransferPageState extends ConsumerState<TransferPage> {
   final int _selectedIndex = 0;
   final _pageOptions = [
     const MyHomePage(),
@@ -30,28 +31,25 @@ class _TransferPageState extends State<TransferPage> {
   late String destAccount = "";
   late double amount = 0.0;
 
-  static const platform = MethodChannel(
-      'forgerock.com/SampleBridge'); //Method channel as defined in the native Bridge code
+  TransferRepo readTransferRepo() {
+    return ref.read(transferRepoProvider);
+  }
+
+  final sdk = const FRSdk();
 
   Future<void> _startTransaction(String authnType) async {
+    final transferRepo = readTransferRepo();
     try {
       srcAccount = _controllers[0].text;
       destAccount = _controllers[1].text;
       amount = double.parse(_controllers[2].text);
-      //Call the default login tree.
-      final String result = await platform.invokeMethod('callEndpoint', [
-        "https://bacciambl.encore.forgerock.com/transfer?authType=$authnType",
-        'POST',
-        '{"srcAcct": $srcAccount, "destAcct": $destAccount, "amount": $amount}',
-        "true"
-      ]);
-      debugPrint("Final response $result");
-      /*Map<String, dynamic> frNodeMap = jsonDecode(result);
-      var frNode = FRNode.fromJson(frNodeMap);
-      currentNode = frNode;
-      _handleNode(frNode);*/
-    } on PlatformException catch (e) {
-      debugPrint('SDK: $e');
+      await transferRepo.startTransaction(
+        authnType,
+        srcAccount,
+        destAccount,
+        amount,
+      );
+    } on StartTransactinError catch (_) {
       if (mounted) Navigator.pop(context);
     }
   }
@@ -70,30 +68,21 @@ class _TransferPageState extends State<TransferPage> {
       }
       callbackIndex++;
     }
-    String jsonResponse = jsonEncode(currentNode);
 
     try {
       //Submitting the node. This will return either a new node or a success/failure message
-      String result = await platform.invokeMethod('next', jsonResponse);
-      Map<String, dynamic> response = jsonDecode(result);
-      if (response["type"] == "LoginSuccess") {
-        //_navigateToNextScreen(context);
-        //process the results
-        debugPrint("Transaction successful");
-      } else {
-        Map<String, dynamic> frNodeMap = jsonDecode(result);
-        /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
-        if ( callback["type"] == "WebAuthnRegistrationCallback") {
-          _webAuthentication(callback);
-        }
-        else {*/
-        var frNode = FRNode.fromJson(frNodeMap);
-        currentNode = frNode;
-        _handleNode(frNode);
-        //}
+      final action = await sdk.next(currentNode);
+      switch (action) {
+        case LoginSuccessNext():
+          //_navigateToNextScreen(context);
+          //process the results
+          debugPrint("Transaction successful");
+        case NextHandleNode(:final frNode):
+          currentNode = frNode;
+          _handleNode(frNode);
       }
-    } catch (e) {
-      debugPrint('SDK Error: $e');
+    } on NextError catch (e) {
+      debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
     }
   }

@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:fr_sdk_bac/fr_impls/fr_impls.dart";
+import "package:fr_sdk_bac/fr_sdk.dart";
 import "package:fr_sdk_bac/login.dart";
+import "package:fr_sdk_bac/providers.dart";
 import "package:fr_sdk_bac/register.dart";
 import "package:fr_sdk_bac/home.dart";
 
-void main() {
-  runApp(const BACMobileApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final frSdk = await FRSdk.start();
+  runApp(
+    ProviderScope(
+      overrides: [
+        frSdkProvider.overrideWithValue(frSdk),
+        transferRepoProvider
+            .overrideWith((ref) => FRTranferRepo(ref.read(frSdkProvider))),
+      ],
+      child: const BACMobileApp(),
+    ),
+  );
 }
 
 class BACMobileApp extends StatefulWidget {
