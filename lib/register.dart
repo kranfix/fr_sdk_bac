@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:fr_sdk_bac/fr_sdk.dart';
 import 'package:fr_sdk_bac/transfer.dart';
 
 import 'fr_node.dart';
@@ -39,6 +40,7 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   static const platform = MethodChannel(
       'forgerock.com/SampleBridge'); //Method channel as defined in the native Bridge code
+  final sdk = const FRSdk();
   final _fields = <HelperCompoment>[];
   final _controllers = <String, TextEditingController>{};
   late FRNode currentNode;
@@ -116,28 +118,19 @@ class _RegisterPageState extends State<RegisterPage> {
       }
       callbackIndex++;
     }
-    String jsonResponse = jsonEncode(currentNode);
 
     try {
       //Submitting the node. This will return either a new node or a success/failure message
-      String result = await platform.invokeMethod('next', jsonResponse);
-      Map<String, dynamic> response = jsonDecode(result);
-      if (response["type"] == "LoginSuccess") {
-        if (mounted) _navigateToNextScreen(context);
-      } else {
-        Map<String, dynamic> frNodeMap = jsonDecode(result);
-        /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
-        if ( callback["type"] == "WebAuthnRegistrationCallback") {
-          _webAuthentication(callback);
-        }
-        else {*/
-        var frNode = FRNode.fromJson(frNodeMap);
-        currentNode = frNode;
-        _handleNode(frNode);
-        //}
+      final action = await sdk.next(currentNode);
+      switch (action) {
+        case LoginSuccessNext():
+          if (mounted) _navigateToNextScreen(context);
+        case NextHandleNode(:final frNode):
+          currentNode = frNode;
+          _handleNode(frNode);
       }
-    } catch (e) {
-      debugPrint('SDK Error: $e');
+    } on NextError catch (e) {
+      debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
     }
   }
