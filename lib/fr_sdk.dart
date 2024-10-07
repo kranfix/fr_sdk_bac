@@ -13,6 +13,7 @@ class FRSdk {
   static Future<FRSdk> start() async {
     try {
       //Start the SDK. Call the frAuthStart channel method to initialise the native SDKs
+      await platform.invokeMethod('frAuthStart');
       return const FRSdk();
     } on PlatformException catch (e) {
       debugPrint("SDK Start Failed: '${e.message}'.");

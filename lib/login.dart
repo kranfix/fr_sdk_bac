@@ -23,29 +23,6 @@ class _LoginPageState extends State<LoginPage> {
   final _controllers = <TextEditingController>[];
   late FRNode currentNode;
 
-  //Lifecycle Methods
-  @override
-  void initState() {
-    super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      //When the first controller that will use the SDK is created we need to call the 'frAuthStart' method to initialise the native SDKs
-      _startSDK();
-    });
-  }
-
-  // SDK Calls -  Note the promise type responses. Handle errors on the UI layer as required
-  Future<void> _startSDK() async {
-    String response;
-    try {
-      //Start the SDK. Call the frAuthStart channel method to initialise the native SDKs
-      final String result = await platform.invokeMethod('frAuthStart');
-      response = 'SDK Started';
-      _login();
-    } on PlatformException catch (e) {
-      response = "SDK Start Failed: '${e.message}'.";
-    }
-  }
-
   Future<void> _login() async {
     try {
       //Call the default login tree.

@@ -45,28 +45,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _controllers = <String, TextEditingController>{};
   late FRNode currentNode;
 
-  //Lifecycle Methods
-  @override
-  void initState() {
-    super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _startSDK();
-    });
-  }
-
-  // SDK Calls -  Note the promise type responses. Handle errors on the UI layer as required
-  Future<void> _startSDK() async {
-    String response;
-    try {
-      //Start the SDK. Call the frAuthStart channel method to initialise the native SDKs
-      final String result = await platform.invokeMethod('frAuthStart');
-      response = 'SDK Started';
-      _register();
-    } on PlatformException catch (e) {
-      response = "SDK Start Failed: '${e.message}'.";
-    }
-  }
-
   @override
   void dispose() {
     super.dispose();
