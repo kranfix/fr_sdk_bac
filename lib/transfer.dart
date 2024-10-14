@@ -73,15 +73,15 @@ class _TransferPageState extends ConsumerState<TransferPage> {
       //Submitting the node. This will return either a new node or a success/failure message
       final action = await sdk.next(currentNode);
       switch (action) {
-        case LoginSuccessNext():
+        case FRLoginSuccessNext():
           //_navigateToNextScreen(context);
           //process the results
           debugPrint("Transaction successful");
-        case NextHandleNode(:final frNode):
+        case FRNextHandleNode(:final frNode):
           currentNode = frNode;
           _handleNode(frNode);
       }
-    } on NextError catch (e) {
+    } on FRNextError catch (e) {
       debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
     }

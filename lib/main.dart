@@ -14,6 +14,8 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         frSdkProvider.overrideWithValue(frSdk),
+        authRepoProvider
+            .overrideWith((ref) => FRAuthRepo(ref.read(frSdkProvider))),
         transferRepoProvider
             .overrideWith((ref) => FRTranferRepo(ref.read(frSdkProvider))),
       ],

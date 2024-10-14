@@ -22,7 +22,7 @@ final class FRTranferRepo implements TransferRepo {
         amount,
         true,
       );
-    } on CallEndpointError catch (e) {
+    } on FRCallEndpointError catch (e) {
       throw StartTransactinError(e);
     }
   }

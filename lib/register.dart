@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:fr_sdk_bac/fr_sdk.dart';
 import 'package:fr_sdk_bac/transfer.dart';
@@ -101,13 +100,13 @@ class _RegisterPageState extends State<RegisterPage> {
       //Submitting the node. This will return either a new node or a success/failure message
       final action = await sdk.next(currentNode);
       switch (action) {
-        case LoginSuccessNext():
+        case FRLoginSuccessNext():
           if (mounted) _navigateToNextScreen(context);
-        case NextHandleNode(:final frNode):
+        case FRNextHandleNode(:final frNode):
           currentNode = frNode;
           _handleNode(frNode);
       }
-    } on NextError catch (e) {
+    } on FRNextError catch (e) {
       debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
     }
