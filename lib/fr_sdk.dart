@@ -17,7 +17,7 @@ class FRSdk {
       return const FRSdk();
     } on PlatformException catch (e) {
       debugPrint("SDK Start Failed: '${e.message}'.");
-      throw StartError();
+      throw FRStartError();
     }
   }
 
@@ -34,6 +34,30 @@ class FRSdk {
     } catch (e) {
       debugPrint('SDK Login Error: Unexpected: $e');
       throw LoginError.unexpected();
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      await platform.invokeMethod('logout');
+    } on PlatformException catch (e) {
+      throw FRLogoutError.fromPlatformException(e);
+    } catch (e) {
+      throw FRLogoutError.unexpected();
+    }
+  }
+
+  Future<FRNode> register() async {
+    try {
+      // Call the default register tree/journey
+      final String result = await platform.invokeMethod('register');
+      Map<String, dynamic> frNodeMap = jsonDecode(result);
+      return FRNode.fromJson(frNodeMap);
+    } on PlatformException catch (e) {
+      debugPrint('SDK: $e');
+      throw FRRegisterError.fromPlatformException(e);
+    } catch (e) {
+      throw FRRegisterError.unexpected();
     }
   }
 
@@ -60,14 +84,14 @@ class FRSdk {
       return result;
     } on PlatformException catch (e) {
       debugPrint('SDK: $e');
-      throw CallEndpointError.fromPlatformException(e);
+      throw FRCallEndpointError.fromPlatformException(e);
     } catch (e) {
       debugPrint('SDK: $e');
-      throw CallEndpointError.unexpected();
+      throw FRCallEndpointError.unexpected();
     }
   }
 
-  Future<NextAction> next(FRNode currentNode) async {
+  Future<FRNextAction> next(FRNode currentNode) async {
     final jsonResponse = jsonEncode(currentNode.toJson());
 
     try {
@@ -78,7 +102,7 @@ class FRSdk {
         //_navigateToNextScreen(context);
         //process the results
         debugPrint("Transaction successful");
-        return LoginSuccessNext();
+        return FRLoginSuccessNext();
       } else {
         Map<String, dynamic> frNodeMap = jsonDecode(result);
         /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
@@ -87,21 +111,21 @@ class FRSdk {
         }
         else {*/
         final frNode = FRNode.fromJson(frNodeMap);
-        return NextHandleNode(frNode);
+        return FRNextHandleNode(frNode);
         //}
       }
     } on PlatformException catch (e) {
       debugPrint('SDK Error: $e');
-      throw NextError.fromPlatformException(e);
+      throw FRNextError.fromPlatformException(e);
     } catch (e) {
       debugPrint('SDK Error: $e');
-      throw NextError.unexpected();
+      throw FRNextError.unexpected();
     }
   }
 }
 
 // ------------------ Start ------------------
-class StartError implements Exception {}
+class FRStartError implements Exception {}
 
 // ------------------ Login ------------------
 class LoginError implements Exception {
@@ -109,6 +133,26 @@ class LoginError implements Exception {
       : platformException = exception;
 
   LoginError.unexpected() : platformException = null;
+
+  final PlatformException? platformException;
+}
+
+// ------------------ Logout ------------------
+class FRLogoutError implements Exception {
+  FRLogoutError.fromPlatformException(PlatformException exception)
+      : platformException = exception;
+
+  FRLogoutError.unexpected() : platformException = null;
+
+  final PlatformException? platformException;
+}
+
+// ------------------ Register ------------------
+class FRRegisterError implements Exception {
+  FRRegisterError.fromPlatformException(PlatformException exception)
+      : platformException = exception;
+
+  FRRegisterError.unexpected() : platformException = null;
 
   final PlatformException? platformException;
 }
@@ -125,32 +169,32 @@ enum HttpMethod {
   final String name;
 }
 
-class CallEndpointError implements Exception {
-  CallEndpointError.fromPlatformException(PlatformException exception)
+class FRCallEndpointError implements Exception {
+  FRCallEndpointError.fromPlatformException(PlatformException exception)
       : platformException = exception;
 
-  CallEndpointError.unexpected() : platformException = null;
+  FRCallEndpointError.unexpected() : platformException = null;
 
   final PlatformException? platformException;
 }
 
 // ------------------ Next ------------------
 
-class NextError implements Exception {
-  NextError.fromPlatformException(PlatformException exception)
+class FRNextError implements Exception {
+  FRNextError.fromPlatformException(PlatformException exception)
       : platformException = exception;
 
-  NextError.unexpected() : platformException = null;
+  FRNextError.unexpected() : platformException = null;
 
   final PlatformException? platformException;
 }
 
-sealed class NextAction {}
+sealed class FRNextAction {}
 
-class LoginSuccessNext extends NextAction {}
+class FRLoginSuccessNext extends FRNextAction {}
 
-class NextHandleNode extends NextAction {
-  NextHandleNode(this.frNode);
+class FRNextHandleNode extends FRNextAction {
+  FRNextHandleNode(this.frNode);
 
   final FRNode frNode;
 }

@@ -1,28 +1,30 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fr_sdk_bac/fr_sdk.dart';
+import 'package:fr_sdk_bac/providers.dart';
 import 'package:fr_sdk_bac/transfer.dart';
 
 import 'fr_node.dart';
 import 'register.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  final sdk = const FRSdk();
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _fields = <TextField>[];
   final _controllers = <TextEditingController>[];
   late FRNode currentNode;
 
   Future<void> _login() async {
+    final authRepo = ref.read(authRepoProvider);
     try {
       //Call the default login tree.
-      final frNode = await sdk.login();
+      final frNode = await authRepo.login();
       currentNode = frNode;
 
       //Upon completion, a node with callbacks will be returned, handle that node and present the callbacks to UI as needed.
@@ -50,15 +52,16 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      final sdk = ref.read(frSdkProvider);
       final action = await sdk.next(currentNode);
       switch (action) {
-        case LoginSuccessNext():
+        case FRLoginSuccessNext():
           if (mounted) _navigateToNextScreen(context);
-        case NextHandleNode(:final frNode):
+        case FRNextHandleNode(:final frNode):
           currentNode = frNode;
           _handleNode(frNode);
       }
-    } on NextError catch (e) {
+    } on FRNextError catch (e) {
       debugPrint('Next Error: $e');
       if (mounted) Navigator.pop(context);
     }

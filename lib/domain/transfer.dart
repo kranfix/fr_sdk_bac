@@ -7,8 +7,4 @@ abstract class TransferRepo {
   );
 }
 
-class StartTransactinError implements Exception {
-  StartTransactinError(this.e);
-
-  final Exception e;
-}
+extension type StartTransactinError(Exception e) implements Exception {}

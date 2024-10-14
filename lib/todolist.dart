@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fr_sdk_bac/providers.dart';
 
 class Todo {
   Todo({required this.name, required this.id, required this.checked});
@@ -11,11 +13,11 @@ class Todo {
   bool checked;
 }
 
-class TodoList extends StatefulWidget {
+class TodoList extends ConsumerStatefulWidget {
   const TodoList({super.key});
 
   @override
-  State<TodoList> createState() => _TodoListState();
+  ConsumerState<TodoList> createState() => _TodoListState();
 }
 
 class TodoItem extends StatelessWidget {
@@ -50,7 +52,7 @@ class TodoItem extends StatelessWidget {
   }
 }
 
-class _TodoListState extends State<TodoList> {
+class _TodoListState extends ConsumerState<TodoList> {
   final TextEditingController _textFieldController = TextEditingController();
   final List<Todo> _todos = <Todo>[];
   final List<Widget> _widgets = <Widget>[];
@@ -90,7 +92,8 @@ class _TodoListState extends State<TodoList> {
   }
 
   Future<void> _logout() async {
-    final String result = await platform.invokeMethod('logout');
+    final sdk = ref.read(frSdkProvider);
+    await sdk.logout();
     if (mounted) _navigateToNextScreen(context);
   }
 
