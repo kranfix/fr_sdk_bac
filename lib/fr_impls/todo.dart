@@ -48,9 +48,9 @@ class FRTodoRepo implements TodoRepo {
         false,
       );
     } on FRCallEndpointError catch (e) {
-      throw GetTodosError(e);
+      throw DeleteTodoError(e);
     } catch (e) {
-      throw GetTodosError.unexpected(e);
+      throw DeleteTodoError.unexpected(e);
     }
   }
 
@@ -64,9 +64,9 @@ class FRTodoRepo implements TodoRepo {
         false,
       );
     } on FRCallEndpointError catch (e) {
-      throw GetTodosError(e);
+      throw UpdateTodoError(e);
     } catch (e) {
-      throw GetTodosError.unexpected(e);
+      throw UpdateTodoError.unexpected(e);
     }
   }
 }

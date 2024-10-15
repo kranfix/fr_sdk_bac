@@ -49,7 +49,7 @@ class TodoItem extends StatelessWidget {
 
 class _TodoListState extends ConsumerState<TodoList> {
   final TextEditingController _textFieldController = TextEditingController();
-  final List<Todo> _todos = <Todo>[];
+  var _todos = <Todo>[];
   final List<Widget> _widgets = <Widget>[];
   static const platform = MethodChannel('forgerock.com/SampleBridge');
   String header = "";
@@ -117,21 +117,11 @@ class _TodoListState extends ConsumerState<TodoList> {
 
   Future<void> _getTodos() async {
     try {
-      final String result = await platform.invokeMethod('callEndpoint',
-          ["https://fr-todos-api.crbrl.io/todos", 'GET', '', "false"]);
-      //final String result = await platform.invokeMethod('callEndpoint', ["https://bacciambl.encore.forgerock.com/transfer?authType=fido",'POST', '{"srcAcct": "35679383", "destAcct": "3975273", "amount": 230.00}', "true"]);
-      List<dynamic> toDosList = jsonDecode(result);
-      final todos = List<Map<String, dynamic>>.from(toDosList);
-      _todos.clear();
-      for (var todoMap in todos) {
-        _todos.add(
-          Todo(
-            name: todoMap["title"],
-            checked: todoMap["completed"],
-            id: todoMap["_id"],
-          ),
-        );
-        setState(() {});
+      final todos = await getTodoRepo().getTodos();
+      if (mounted) {
+        setState(() {
+          _todos = todos;
+        });
       }
       debugPrint('SDK: $todos');
     } on PlatformException catch (e) {
@@ -141,11 +131,7 @@ class _TodoListState extends ConsumerState<TodoList> {
 
   Future<void> _addTodoItem(String name) async {
     try {
-      final result = await platform.invokeMethod('callEndpoint', [
-        "https://fr-todos-api.crbrl.io/todos",
-        'POST',
-        '{"title": "$name"}'
-      ]);
+      await getTodoRepo().addTodo(name);
       _getTodos();
     } on PlatformException catch (e) {
       debugPrint('SDK: $e');
@@ -211,7 +197,10 @@ class _TodoListState extends ConsumerState<TodoList> {
       backgroundColor: Colors.grey[100],
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [_welcomeText(), _listView()],
+        children: [
+          _welcomeText(),
+          _listView(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
           onPressed: () => _displayDialog(),
@@ -305,12 +294,9 @@ class _TodoListState extends ConsumerState<TodoList> {
     return ListView(
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      children: _todos.map((Todo todo) {
-        // return TodoItem(
-        //   todo: todo,
-        //   onTodoChanged: _handleTodoChange,
-        // );
-        return Dismissible(
+      children: [
+        for (final todo in _todos)
+          Dismissible(
             key: Key(todo.id),
             onDismissed: (direction) {
               _deleteTodo(todo);
@@ -319,8 +305,9 @@ class _TodoListState extends ConsumerState<TodoList> {
             child: TodoItem(
               todo: todo,
               onTodoChanged: _handleTodoChange,
-            ));
-      }).toList(),
+            ),
+          )
+      ],
     );
   }
 
@@ -348,30 +335,28 @@ class _TodoListState extends ConsumerState<TodoList> {
     return showDialog<void>(
       context: context,
       barrierDismissible: false, // user must tap button!
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add a new todo item'),
-          content: TextField(
-            controller: _textFieldController,
-            decoration: const InputDecoration(hintText: 'Type your new todo'),
+      builder: (context) => AlertDialog(
+        title: const Text('Add a new todo item'),
+        content: TextField(
+          controller: _textFieldController,
+          decoration: const InputDecoration(hintText: 'Type your new todo'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Add'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _addTodoItem(_textFieldController.text);
-              },
-            ),
-          ],
-        );
-      },
+          TextButton(
+            child: const Text('Add'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              _addTodoItem(_textFieldController.text);
+            },
+          ),
+        ],
+      ),
     );
   }
 }
