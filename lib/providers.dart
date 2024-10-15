@@ -13,3 +13,7 @@ final authRepoProvider = Provider<AuthRepo>(
 final transferRepoProvider = Provider<TransferRepo>(
   (_) => throw UnimplementedError('TransferRepo is not initialized'),
 );
+
+final todoRepoProvider = Provider<TodoRepo>(
+  (_) => throw UnimplementedError('TransferRepo is not initialized'),
+);
