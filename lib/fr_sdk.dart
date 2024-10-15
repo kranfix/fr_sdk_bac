@@ -65,7 +65,6 @@ class FRSdk {
     String url,
     HttpMethod method,
     String body,
-    double amount,
     bool requireAuthz,
   ) async {
     try {

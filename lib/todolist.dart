@@ -6,12 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fr_sdk_bac/providers.dart';
 
-class Todo {
-  Todo({required this.name, required this.id, required this.checked});
-  final String name;
-  final String id;
-  bool checked;
-}
+import 'domain/domain.dart';
 
 class TodoList extends ConsumerStatefulWidget {
   const TodoList({super.key});
@@ -70,6 +65,10 @@ class _TodoListState extends ConsumerState<TodoList> {
     });
   }
 
+  TodoRepo getTodoRepo() {
+    return ref.read(todoRepoProvider);
+  }
+
   // SDK Calls -  Note the promise type responses. Handle errors on the UI layer as required
   Future<void> _getUserInfo() async {
     showAlertDialog(context);
@@ -100,9 +99,7 @@ class _TodoListState extends ConsumerState<TodoList> {
   //Network Calls
   Future<void> _deleteTodo(Todo todo) async {
     try {
-      final _id = todo.id;
-      final String result = await platform.invokeMethod('callEndpoint',
-          ["https://fr-todos-api.crbrl.io/todos/$_id", 'DELETE', '']);
+      await getTodoRepo().deleteTodo(todo);
       _getTodos();
     } on PlatformException catch (e) {
       debugPrint('SDK: $e');
@@ -111,12 +108,7 @@ class _TodoListState extends ConsumerState<TodoList> {
 
   Future<void> _updateTodo(Todo todo, bool checked) async {
     try {
-      String _id = todo.id.toString();
-      final String result = await platform.invokeMethod('callEndpoint', [
-        "https://fr-todos-api.crbrl.io/todos/$_id",
-        'POST',
-        '{"completed": $checked}, "false"'
-      ]);
+      await getTodoRepo().updateTodo(todo, checked);
       _getTodos();
     } on PlatformException catch (e) {
       debugPrint('SDK: $e');

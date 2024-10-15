@@ -19,7 +19,6 @@ final class FRTranferRepo implements TransferRepo {
         "https://bacciambl.encore.forgerock.com/transfer?authType=$authnType",
         HttpMethod.post,
         '{"srcAcct": $srcAccount, "destAcct": $destAccount, "amount": $amount}',
-        amount,
         true,
       );
     } on FRCallEndpointError catch (e) {
