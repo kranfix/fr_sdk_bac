@@ -24,4 +24,18 @@ class FRAuthRepo implements AuthRepo {
       throw AuthLoginError(e);
     }
   }
+
+  @override
+  Future<UserInfo?> getUserInfo() async {
+    try {
+      final info = await sdk.getUserInfo();
+      if (info == null) return null;
+      return UserInfo(
+        name: info.name,
+        email: info.email,
+      );
+    } on Exception catch (e) {
+      throw GetUserInfoError(e);
+    }
+  }
 }
