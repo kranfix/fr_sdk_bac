@@ -10,7 +10,7 @@ class Todo {
 
   final String name;
   final String id;
-  bool checked;
+  final bool checked;
 
   factory Todo.fromJson(Map<String, dynamic> json) {
     return Todo(

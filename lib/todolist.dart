@@ -174,10 +174,13 @@ class _TodoListState extends ConsumerState<TodoList> {
   }
 
   void _handleTodoChange(Todo todo) {
-    setState(() {
-      todo.checked = !todo.checked;
-      _updateTodo(todo, todo.checked);
-    });
+    final index = _todos.indexWhere((it) => todo.id == it.id);
+    if (index != -1) {
+      setState(() {
+        _todos[index] = todo;
+      });
+    }
+    _updateTodo(todo, todo.checked);
   }
 
   //Widgets
@@ -203,9 +206,10 @@ class _TodoListState extends ConsumerState<TodoList> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-          onPressed: () => _displayDialog(),
-          tooltip: 'Add Item',
-          child: const Icon(Icons.add)),
+        onPressed: () => _displayDialog(),
+        tooltip: 'Add Item',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
@@ -226,9 +230,7 @@ class _TodoListState extends ConsumerState<TodoList> {
             ),
             TextButton(
               child: const Text('No'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         );
@@ -238,56 +240,57 @@ class _TodoListState extends ConsumerState<TodoList> {
 
   Widget _welcomeText() {
     return Container(
-        color: Colors.greenAccent[100],
-        width: MediaQuery.of(context).size.width,
-        margin: const EdgeInsets.all(15.0),
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.gpp_good),
-                  const SizedBox(width: 2),
-                  Expanded(
+      color: Colors.greenAccent[100],
+      width: MediaQuery.of(context).size.width,
+      margin: const EdgeInsets.all(15.0),
+      child: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.gpp_good),
+                const SizedBox(width: 2),
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    "Welcome back, $header",
+                    style: TextStyle(
+                        color: Colors.grey[900],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                    softWrap: true,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 28),
+                Expanded(
                     flex: 4,
                     child: Text(
-                      "Welcome back, $header",
+                      "You're currently logged in with the email $subtitle",
                       style: TextStyle(
                           color: Colors.grey[900],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16),
+                          fontWeight: FontWeight.w200,
+                          fontSize: 14),
                       softWrap: true,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  )
-                ],
-              ),
-              const SizedBox(height: 5),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(width: 28),
-                  Expanded(
-                      flex: 4,
-                      child: Text(
-                        "You're currently logged in with the email $subtitle",
-                        style: TextStyle(
-                            color: Colors.grey[900],
-                            fontWeight: FontWeight.w200,
-                            fontSize: 14),
-                        softWrap: true,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ))
-                ],
-              ),
-            ],
-          ),
-        ));
+                    ))
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _listView() {
