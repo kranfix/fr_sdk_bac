@@ -61,6 +61,20 @@ class FRSdk {
     }
   }
 
+  Future<({String name, String email})?> getUserInfo() async {
+    try {
+      final String result = await platform.invokeMethod('getUserInfo');
+      Map<String, dynamic> userInfoMap = jsonDecode(result);
+      return (
+        name: userInfoMap["name"] as String,
+        email: userInfoMap["email"] as String,
+      );
+    } on PlatformException catch (e) {
+      debugPrint('SDK.getUserInfo: $e');
+      return null;
+    }
+  }
+
   Future<String> callEndpoint(
     String url,
     HttpMethod method,

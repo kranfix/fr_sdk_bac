@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -50,8 +48,7 @@ class TodoItem extends StatelessWidget {
 class _TodoListState extends ConsumerState<TodoList> {
   final TextEditingController _textFieldController = TextEditingController();
   var _todos = <Todo>[];
-  final List<Widget> _widgets = <Widget>[];
-  static const platform = MethodChannel('forgerock.com/SampleBridge');
+  //final List<Widget> _widgets = <Widget>[];
   String header = "";
   String subtitle = "";
 
@@ -69,25 +66,28 @@ class _TodoListState extends ConsumerState<TodoList> {
     return ref.read(todoRepoProvider);
   }
 
+  AuthRepo getAuthRpo() {
+    return ref.read(authRepoProvider);
+  }
+
   // SDK Calls -  Note the promise type responses. Handle errors on the UI layer as required
   Future<void> _getUserInfo() async {
     showAlertDialog(context);
-    String response;
+
+    final authRepo = getAuthRpo();
+
     try {
-      final String result = await platform.invokeMethod('getUserInfo');
-      Map<String, dynamic> userInfoMap = jsonDecode(result);
-      response = result;
-      header = userInfoMap["name"];
-      subtitle = userInfoMap["email"];
-      if (mounted) Navigator.pop(context);
+      final userInfo = await authRepo.getUserInfo();
+      if (userInfo == null) return;
       setState(() {
-        _getTodos();
+        header = userInfo.name;
+        subtitle = userInfo.name;
       });
-    } on PlatformException catch (e) {
-      response = "SDK Start Failed: '${e.message}'.";
+      _getTodos();
+      if (mounted) Navigator.pop(context);
+    } on GetUserInfoError catch (_) {
       if (mounted) Navigator.pop(context);
     }
-    debugPrint('SDK: $response');
   }
 
   Future<void> _logout() async {
