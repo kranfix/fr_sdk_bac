@@ -4,7 +4,6 @@ package baccredomatic.com.fr_sdk_bac;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.google.android.gms.fido.fido2.api.common.ResidentKeyRequirement;
 import com.google.gson.Gson;
@@ -19,7 +18,6 @@ import org.forgerock.android.auth.Logger;
 import org.forgerock.android.auth.Node;
 import org.forgerock.android.auth.NodeListener;
 import org.forgerock.android.auth.PolicyAdvice;
-import org.forgerock.android.auth.SSOToken;
 import org.forgerock.android.auth.SecureCookieJar;
 import org.forgerock.android.auth.UserInfo;
 
@@ -27,7 +25,6 @@ import io.flutter.plugin.common.MethodChannel;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
 import okhttp3.Call;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -39,7 +36,6 @@ import org.forgerock.android.auth.callback.Callback;
 import org.forgerock.android.auth.callback.ChoiceCallback;
 import org.forgerock.android.auth.callback.DeviceProfileCallback;
 import org.forgerock.android.auth.callback.KbaCreateCallback;
-import org.forgerock.android.auth.callback.MetadataCallback;
 import org.forgerock.android.auth.callback.NameCallback;
 import org.forgerock.android.auth.callback.PasswordCallback;
 import org.forgerock.android.auth.callback.StringAttributeInputCallback;
@@ -49,20 +45,17 @@ import org.forgerock.android.auth.callback.ValidatedUsernameCallback;
 import org.forgerock.android.auth.callback.WebAuthnAuthenticationCallback;
 import org.forgerock.android.auth.callback.WebAuthnRegistrationCallback;
 import org.forgerock.android.auth.exception.AuthenticationRequiredException;
-import org.forgerock.android.auth.interceptor.AccessTokenInterceptor;
 import org.forgerock.android.auth.interceptor.AdviceHandler;
 import org.forgerock.android.auth.interceptor.IdentityGatewayAdviceInterceptor;
 import org.forgerock.android.auth.webauthn.WebAuthnKeySelector;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -76,7 +69,7 @@ public class FRAuthSampleBridge {
         this.context = context;
     }
 
-    public void start(MethodChannel.Result promise) {
+    public void start(@NonNull MethodChannel.Result promise) {
         Logger.set(Logger.Level.DEBUG);
         FRAuth.start(this.context);
         promise.success("SDK Initialized");
@@ -97,7 +90,7 @@ public class FRAuthSampleBridge {
 
     public void login(MethodChannel.Result promise) {
         try {
-            authenticate(promise, true);
+            FRUser.login(this.context, listener(promise));
         } catch (Exception e) {
             promise.error("error", e.toString(), e);
         }
@@ -105,7 +98,7 @@ public class FRAuthSampleBridge {
 
     public void register(MethodChannel.Result promise) {
         try {
-            authenticate(promise, false);
+            FRUser.register(this.context, listener(promise));
         } catch (Exception e) {
             promise.error("error", e.toString(), e);
         }
@@ -133,8 +126,9 @@ public class FRAuthSampleBridge {
     }
 
     public void getUserInfo(MethodChannel.Result promise) {
-        if (FRUser.getCurrentUser() != null) {
-            FRUser.getCurrentUser().getUserInfo(new FRListener<UserInfo>() {
+        FRUser frUser = FRUser.getCurrentUser();
+        if (frUser != null) {
+            frUser.getUserInfo(new FRListener<UserInfo>() {
                 @Override
                 public void onSuccess(final UserInfo result) {
                     JSONObject jsonResult = result.getRaw();
@@ -161,7 +155,7 @@ public class FRAuthSampleBridge {
         NodeListener<FRSession> nodeListenerFuture = new NodeListener<FRSession>() {
             @Override
             public void onSuccess(FRSession session) {
-                HashMap map = new HashMap<>();
+                HashMap<String, String> map = new HashMap<>();
                 try {
                     Gson gson = new Gson();
                     map.put("type", "LoginSuccess");
@@ -180,13 +174,13 @@ public class FRAuthSampleBridge {
             }
 
             @Override
-            public void onCallbackReceived(Node node) {
+            public void onCallbackReceived(@NonNull Node node) {
                 currentNode = node;
                 FRListener<Void> webAuthnListener = new FRListener<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         System.out.println("On Successful Web Authentication");
-                        HashMap map = new HashMap<>();
+                        HashMap<String, String> map = new HashMap<>();
                         // Need to invoke the API again adding the TxId in a header - will do that later
                         //invokeTransactionWithAuthorization(promise, endpoint, method, payload, transactionId[0]);
                         Gson gson = new Gson();
@@ -229,7 +223,7 @@ public class FRAuthSampleBridge {
             builder.cookieJar(secureCookieJar);
             client = builder.build();
             MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-            if (payload.length() > 0 ) {
+            if (!payload.isEmpty()) {
                 RequestBody body = RequestBody.create(payload, JSON);
                 System.out.println("Body " + payload);
                 if (isAuthzRequired) {
@@ -257,7 +251,8 @@ public class FRAuthSampleBridge {
                     .build();
             System.out.println("The request object <noAuthz2> " + request.toString());
         }
-        System.out.println("About to submit request: " + request.toString());
+        System.out.println("About to submit request: " + request);
+        assert request != null;
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
@@ -367,7 +362,7 @@ public class FRAuthSampleBridge {
                     RawCallback callback = responseObj.callbacks.get(j);
                     String currentCallbackType = callback.type;
                     RawInput input = null;
-                    if (callback.input.size() > 0) {
+                    if (!callback.input.isEmpty()) {
                         input = callback.input.get(0);
                     }
                     if ((currentCallbackType.equals("NameCallback")) && i==j) {
@@ -434,12 +429,14 @@ public class FRAuthSampleBridge {
         currentNode.next(this.context, listener(promise));
     }
 
+    @NonNull
+    @Contract("_ -> new")
     private NodeListener<FRUser> listener(MethodChannel.Result promise) {
         return new NodeListener<FRUser>() {
             @Override
             public void onSuccess(FRUser session) {
                 final AccessToken accessToken;
-                HashMap map = new HashMap<>();
+                HashMap<String, String> map = new HashMap<>();
                 try {
                     accessToken = FRUser.getCurrentUser().getAccessToken();
                     Gson gson = new Gson();
@@ -471,17 +468,25 @@ public class FRAuthSampleBridge {
         };
     }
 
-    public void authenticate(MethodChannel.Result promise, boolean isLogin) {
-        if (isLogin == true) {
-            FRUser.login(this.context, listener(promise));
+    public void webAuthentication(MethodChannel.Result promise, String isLogin) throws JSONException {
+        FRListener<Void> listener = getVoidFRListener();
+        boolean doLogin = Boolean.parseBoolean(isLogin);
+        //JSONObject callbackJSON = new JSONObject(callbackValue);
+        if (doLogin) { // Create a WebAuthnAuthenticationCallback
+            WebAuthnAuthenticationCallback callback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
+            callback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, listener);
         } else {
-            FRUser.register(this.context, listener(promise));
+            WebAuthnRegistrationCallback callback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
+            callback.register(this.context, "deviceName", currentNode, listener);
         }
+        //TODO
+        //currentNode.next(this.context, listener);
     }
 
-    public void webAuthentication(MethodChannel.Result promise, String isLogin) throws JSONException {
+    @NonNull
+    private static FRListener<Void> getVoidFRListener() {
         final Semaphore available = new Semaphore(1, true);
-        FRListener<Void> listener = new FRListener<Void>() {
+        return new FRListener<Void>() {
             @Override
             public void onSuccess(Void result) {
                 // Registration is successful
@@ -496,19 +501,6 @@ public class FRAuthSampleBridge {
                 available.release();
             }
         };
-        boolean doLogin = Boolean.parseBoolean(isLogin);
-        //JSONObject callbackJSON = new JSONObject(callbackValue);
-        if (doLogin) { // Create a WebAuthnAuthenticationCallback
-
-            WebAuthnAuthenticationCallback callback = currentNode.getCallback(WebAuthnAuthenticationCallback.class);
-            callback.authenticate(this.context, this.currentNode, WebAuthnKeySelector.DEFAULT, listener);
-        }
-        else {
-            WebAuthnRegistrationCallback callback = currentNode.getCallback(WebAuthnRegistrationCallback.class);
-            callback.register(this.context, "deviceName", currentNode, listener);
-        }
-        //TODO
-        //currentNode.next(this.context, listener);
     }
 }
 
@@ -527,7 +519,7 @@ class FRNode {
     //array of raw callbacks
     private List<JsonObject> callbacks;
 
-    public FRNode(Node node) {
+    public FRNode(@NonNull Node node) {
         this.authId = node.getAuthId();
         //this.authServiceId = node.getAuthServiceId();
         this.stage = node.getStage();
@@ -606,7 +598,7 @@ class FRCallback {
     /// Raw JSON response of Callback
     private String response;
 
-    public FRCallback(Callback callback) {
+    public FRCallback(@NonNull Callback callback) {
         this.type = callback.getType();
         this.inputNames = new ArrayList<String>();
 

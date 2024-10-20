@@ -115,24 +115,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  void showAlertDialog(BuildContext context) {
-    AlertDialog alert = AlertDialog(
-      content: Row(
-        children: [
-          const CircularProgressIndicator(),
-          Container(
-            margin: const EdgeInsets.only(left: 5),
-            child: const Text("Loading"),
-          ),
-        ],
-      ),
-    );
-    showDialog(
+  Future<void> showAlertDialog(BuildContext context) {
+    return showDialog<void>(
       barrierDismissible: false,
       context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            Container(
+              margin: const EdgeInsets.only(left: 5),
+              child: const Text("Loading"),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
