@@ -115,7 +115,9 @@ class FRSdk {
         //_navigateToNextScreen(context);
         //process the results
         debugPrint("Transaction successful");
-        return FRLoginSuccessNext();
+        return FRLoginSuccessNext(
+          sessionToken: response["sessionToken"],
+        );
       } else {
         Map<String, dynamic> frNodeMap = jsonDecode(result);
         /*Map<String, dynamic> callback = frNodeMap["frCallbacks"][0];
@@ -204,7 +206,11 @@ class FRNextError implements Exception {
 
 sealed class FRNextAction {}
 
-class FRLoginSuccessNext extends FRNextAction {}
+class FRLoginSuccessNext extends FRNextAction {
+  FRLoginSuccessNext({required this.sessionToken});
+
+  final String sessionToken;
+}
 
 class FRNextHandleNode extends FRNextAction {
   FRNextHandleNode(this.frNode);
