@@ -1,15 +1,20 @@
-import 'package:fr_sdk_bac/fr_node.dart';
-
 abstract class AuthRepo {
-  // TODO: Create a struct with expected data of the journey instead of raw data
-  Future<FRNode> login();
+  Future<LoginData> loginWithUserAndPassword(String username, String password);
 
   Future<void> logout();
 
   Future<UserInfo?> getUserInfo();
 }
 
-extension type AuthLoginError(Exception e) implements Exception {}
+class LoginData {
+  LoginData({required this.sessionToken});
+
+  final String sessionToken;
+}
+
+extension type AuthLoginError(Exception e) implements Exception {
+  AuthLoginError.message(String msg) : e = Exception(msg);
+}
 extension type AuthLogoutError(Exception e) implements Exception {}
 extension type GetUserInfoError(Exception e) implements Exception {}
 

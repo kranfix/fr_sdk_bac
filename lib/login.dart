@@ -18,17 +18,13 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _fields = <TextField>[];
   final _controllers = <TextEditingController>[];
-  late FRNode currentNode;
+  //late FRNode currentNode;
 
-  Future<void> _login() async {
+  Future<void> _login(String username, String password) async {
     final authRepo = ref.read(authRepoProvider);
     try {
       //Call the default login tree.
-      final frNode = await authRepo.login();
-      currentNode = frNode;
-
-      //Upon completion, a node with callbacks will be returned, handle that node and present the callbacks to UI as needed.
-      _handleNode(frNode);
+      final data = await authRepo.loginWithUserAndPassword(username, password);
     } on LoginError catch (e) {
       debugPrint('SDK Error: $e');
       if (mounted) Navigator.pop(context);
@@ -38,33 +34,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _next() async {
     // Capture the User Inputs from the UI, populate the currentNode callbacks and submit back to AM
 
-    currentNode.callbacks.asMap().forEach((index, frCallback) {
-      if (frCallback.type == "WebAuthnAuthenticationCallback" ||
-          frCallback.type == "HiddenValueCallback") {
-        // Do nothing - no input required.
-      } else {
-        _controllers.asMap().forEach((controllerIndex, controller) {
-          if (controllerIndex == index) {
-            frCallback.input[0].value = controller.text;
-          }
-        });
-      }
-    });
+    // currentNode.callbacks.asMap().forEach((index, frCallback) {
+    //   if (frCallback.type == "WebAuthnAuthenticationCallback" ||
+    //       frCallback.type == "HiddenValueCallback") {
+    //     // Do nothing - no input required.
+    //   } else {
+    //     _controllers.asMap().forEach((controllerIndex, controller) {
+    //       if (controllerIndex == index) {
+    //         frCallback.input[0].value = controller.text;
+    //       }
+    //     });
+    //   }
+    // });
 
-    try {
-      final sdk = ref.read(frSdkProvider);
-      final action = await sdk.next(currentNode);
-      switch (action) {
-        case FRLoginSuccessNext():
-          if (mounted) _navigateToNextScreen(context);
-        case FRNextHandleNode(:final frNode):
-          currentNode = frNode;
-          _handleNode(frNode);
-      }
-    } on FRNextError catch (e) {
-      debugPrint('Next Error: $e');
-      if (mounted) Navigator.pop(context);
-    }
+    // try {
+    //   final sdk = ref.read(frSdkProvider);
+    //   final action = await sdk.next(currentNode);
+    //   switch (action) {
+    //     case FRLoginSuccessNext():
+    //       if (mounted) _navigateToNextScreen(context);
+    //     case FRNextHandleNode(:final frNode):
+    //       currentNode = frNode;
+    //       _handleNode(frNode);
+    //   }
+    // } on FRNextError catch (e) {
+    //   debugPrint('Next Error: $e');
+    //   if (mounted) Navigator.pop(context);
+    // }
   }
 
   // Handling methods
@@ -115,24 +111,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  void showAlertDialog(BuildContext context) {
-    AlertDialog alert = AlertDialog(
-      content: Row(
-        children: [
-          const CircularProgressIndicator(),
-          Container(
-            margin: const EdgeInsets.only(left: 5),
-            child: const Text("Loading"),
-          ),
-        ],
-      ),
-    );
-    showDialog(
+  Future<void> showAlertDialog(BuildContext context) {
+    return showDialog<void>(
       barrierDismissible: false,
       context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            Container(
+              margin: const EdgeInsets.only(left: 5),
+              child: const Text("Loading"),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
